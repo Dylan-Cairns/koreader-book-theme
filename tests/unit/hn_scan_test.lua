@@ -1,5 +1,6 @@
 local luaunit = require("luaunit")
 local Scan = require("hn_scan")
+local Theme = require("hn_theme")
 local Helpers = require("helpers")
 
 local TestScan = {}
@@ -67,6 +68,10 @@ function TestScan:testTocDrivenScan()
     luaunit.assertNotNil(result.css)
     luaunit.assertStrContains(result.css, "p.calibre7")
     luaunit.assertStrContains(result.css, "-cr-hint: toc-level2;")
+    luaunit.assertStrContains(result.css, "body {")
+    luaunit.assertStrContains(result.css, "h1 {")
+    luaunit.assertStrContains(result.css, "/* book-theme v2")
+    luaunit.assertNotStrContains(result.css, "Chapter One")
     luaunit.assertEquals(result.stats.pseudo_headings, 1)
     luaunit.assertEquals(result.candidates[1].count, 2)
 end
@@ -105,7 +110,31 @@ function TestScan:testAlreadySemanticBookIsSkipped()
     }), {})
     luaunit.assertNil(result.error)
     luaunit.assertEquals(result.skipped, "no-pseudo-headings")
-    luaunit.assertNil(result.css)
+    -- No pseudo-headings, but the base theme still styles body type and the
+    -- real headings in the book.
+    luaunit.assertNotNil(result.css)
+    luaunit.assertStrContains(result.css, "body {")
+    luaunit.assertStrContains(result.css, "h1 {")
+    luaunit.assertNotStrContains(result.css, "-cr-hint")
+    luaunit.assertEquals(result.stats.pseudo_headings, 0)
+end
+
+function TestScan:testThemeHashIsReported()
+    local result = Scan.scan(book(), {})
+    luaunit.assertEquals(result.theme_hash, Theme.hash(Theme.defaults()))
+
+    local theme = Theme.defaults()
+    theme.roles.chapter.family = "Literata"
+    local custom = Scan.scan(book(), {theme = theme})
+    luaunit.assertEquals(custom.theme_hash, Theme.hash(theme))
+    luaunit.assertNotEquals(custom.theme_hash, result.theme_hash)
+    luaunit.assertStrContains(custom.css, 'font-family: "Literata" !important;')
+end
+
+function TestScan:testCssIsDeterministicForABook()
+    local first = Scan.scan(book(), {})
+    local second = Scan.scan(book(), {})
+    luaunit.assertEquals(first.css, second.css)
 end
 
 function TestScan:testEncryptedBookIsSkipped()

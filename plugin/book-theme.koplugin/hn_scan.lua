@@ -7,6 +7,7 @@ local Html = require("hn_html")
 local Css = require("hn_css")
 local Classify = require("hn_classify")
 local Generate = require("hn_generate")
+local Theme = require("hn_theme")
 
 local Scan = {}
 
@@ -16,8 +17,6 @@ local DEFAULTS = {
     max_css_documents = 24,
     max_css_bytes = 2 * 1024 * 1024,
     min_layout_score = 38,
-    toc_hints = true,
-    include_page_break = true,
 }
 
 local function read_limited(reader, path, limit, warnings)
@@ -35,8 +34,13 @@ function Scan.scan(reader, options)
     local settings = {}
     for key, value in pairs(DEFAULTS) do settings[key] = value end
     for key, value in pairs(options) do settings[key] = value end
+    local theme = settings.theme
+    if type(theme) ~= "table" then theme = Theme.defaults() end
+    settings.theme = theme
 
-    local result = {warnings = {}, stats = {}}
+    -- The hash is reported even for skipped books so the cache can be keyed
+    -- before any scan work happens.
+    local result = {warnings = {}, stats = {}, theme_hash = Theme.hash(theme)}
     local ok, err = pcall(function()
         local entries = reader:list()
         if not entries or #entries == 0 then
@@ -115,10 +119,12 @@ function Scan.scan(reader, options)
 
         if #merged == 0 then
             result.skipped = "no-pseudo-headings"
-            return
         end
 
         result.candidates = merged
+        -- The base stylesheet (body, real headings, quote type) applies even
+        -- when no pseudo-heading was found, so CSS is never nil for a book we
+        -- could read.
         result.css = Generate.generate(merged, settings)
         if not result.css then result.skipped = "generation-failed" end
     end)

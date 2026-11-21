@@ -1,27 +1,38 @@
--- Turn classified candidates into a deterministic stylesheet. The same book
--- and plugin version always produce byte-identical CSS, so KOReader's
--- rendering hash does not churn between openings.
+-- Turn the theme plus classified candidates into one deterministic stylesheet.
+-- The same book, theme and candidate set always produce byte-identical CSS, so
+-- KOReader's rendering hash does not churn between openings.
+--
+-- The theme owns body and heading type; KOReader keeps base size, line spacing,
+-- margins and contrast. That is why no rule here sets a body font size.
+
+local Theme = require("hn_theme")
 
 local Generate = {}
 
-local DEFAULT_FONT = '"Alegreya Sans", "Noto Sans", sans-serif'
-
-local LEVELS = {
-    [1] = {size = "1.45rem", weight = "500", line = "1.2", margin = "1.6rem 0 0.8rem",
-        upper = false, spacing = nil},
-    [2] = {size = "1.28rem", weight = "500", line = "1.25", margin = "1.7rem 0 0.65rem",
-        upper = false, spacing = nil},
-    [3] = {size = "1.1rem", weight = "500", line = "1.3", margin = "1.5rem 0 0.45rem",
-        upper = false, spacing = nil},
-    [4] = {size = "0.98rem", weight = "500", line = "1.35", margin = "1.35rem 0 0.35rem",
-        upper = true, spacing = "0.05em"},
-    [5] = {size = "0.9rem", weight = "500", line = "1.4", margin = "1.2rem 0 0.3rem",
-        upper = true, spacing = "0.07em"},
-    [6] = {size = "0.9rem", weight = "500", line = "1.4", margin = "1.2rem 0 0.3rem",
-        upper = true, spacing = "0.07em"},
+-- Vertical metrics are fixed per role. Relative sizes come from the theme; a
+-- role's line height and margins stay stable so a font change alone does not
+-- reflow the page beyond the intended family.
+local ROLE_METRICS = {
+    part = {line_height = "1.2", margin = "1.6rem 0 0.8rem"},
+    chapter = {line_height = "1.25", margin = "1.7rem 0 0.65rem"},
+    section = {line_height = "1.3", margin = "1.5rem 0 0.45rem"},
+    minor = {line_height = "1.35", margin = "1.35rem 0 0.35rem"},
 }
 
-local function sorted_unique(selectors)
+local REAL_HEADINGS = {
+    {selectors = {"h1"}, level = 1},
+    {selectors = {"h2"}, level = 2},
+    {selectors = {"h3"}, level = 3},
+    {selectors = {"h4", "h5", "h6"}, level = 4},
+}
+
+local DESCENDANT_RESET = {
+    "    font-size: inherit !important;",
+    "    font-weight: inherit !important;",
+    "    line-height: inherit !important;",
+}
+
+local function unique_sorted(selectors)
     local seen, result = {}, {}
     for _, selector in ipairs(selectors) do
         if not seen[selector] then
@@ -33,93 +44,163 @@ local function sorted_unique(selectors)
     return result
 end
 
+local function family_declaration(role)
+    return "    font-family: \"" .. role.family .. "\" !important;"
+end
+
+local function quote_declarations(role)
+    return {
+        family_declaration(role),
+        "    font-weight: " .. role.weight .. " !important;",
+        "    font-style: " .. (role.style or "normal") .. " !important;",
+    }
+end
+
+local function heading_declarations(level, role)
+    local metrics = ROLE_METRICS[Theme.role_for_level(level)]
+    return {
+        family_declaration(role),
+        "    font-weight: " .. role.weight .. " !important;",
+        "    font-style: " .. (role.style or "normal") .. " !important;",
+        "    font-size: " .. role.size .. " !important;",
+        "    line-height: " .. metrics.line_height .. " !important;",
+        "    margin: " .. metrics.margin .. " !important;",
+        "    text-align: " .. (role.align or "left") .. " !important;",
+        "    text-transform: " .. (role.case == "upper" and "uppercase" or "none") .. " !important;",
+        "    letter-spacing: " .. (role.spacing or "normal") .. " !important;",
+        "    text-indent: 0 !important;",
+        "    hyphens: none !important;",
+        "    page-break-after: avoid !important;",
+    }
+end
+
+local function append_rule(lines, selectors, declarations, hint)
+    lines[#lines + 1] = table.concat(selectors, ",\n") .. " {"
+    for _, declaration in ipairs(declarations) do
+        lines[#lines + 1] = declaration
+    end
+    if hint then lines[#lines + 1] = hint end
+    lines[#lines + 1] = "}"
+    lines[#lines + 1] = ""
+end
+
 function Generate.generate(candidates, options)
     options = options or {}
-    if not candidates or #candidates == 0 then return nil end
+    local theme = options.theme
+    if type(theme) ~= "table" then theme = Theme.defaults() end
+    candidates = candidates or {}
 
-    local font_family = options.font_family or DEFAULT_FONT
-    local by_level = {}
+    local body = theme.body or {}
+    local roles = theme.roles or {}
+    local quote_role = roles.quote or {}
+    local toc_hints = theme.toc_hints ~= false
+
+    local heading_selectors = {}
+    local quote_selectors = {}
     local page_break_selectors = {}
-    for _, candidate in ipairs(candidates) do
-        local level = math.max(1, math.min(6, candidate.level or 2))
-        by_level[level] = by_level[level] or {}
-        by_level[level][#by_level[level] + 1] = candidate.selector
-        if candidate.page_break and options.include_page_break ~= false then
-            page_break_selectors[#page_break_selectors + 1] = candidate.selector
-        end
-    end
+    local seen_heading, seen_quote = {}, {}
 
-    local all_selectors = {}
-    for _, selectors in pairs(by_level) do
-        for _, selector in ipairs(selectors) do
-            all_selectors[#all_selectors + 1] = selector
+    for _, candidate in ipairs(candidates) do
+        local selector = candidate.selector
+        if selector and selector ~= "" then
+            if candidate.role == "quote" then
+                if not seen_quote[selector] then
+                    seen_quote[selector] = true
+                    quote_selectors[#quote_selectors + 1] = selector
+                end
+            elseif not seen_heading[selector] then
+                seen_heading[selector] = true
+                local level = tonumber(candidate.level) or 2
+                level = math.max(1, math.min(6, math.floor(level)))
+                heading_selectors[level] = heading_selectors[level] or {}
+                heading_selectors[level][#heading_selectors[level] + 1] = selector
+                if candidate.page_break and options.include_page_break ~= false then
+                    page_break_selectors[#page_break_selectors + 1] = selector
+                end
+            end
         end
     end
-    all_selectors = sorted_unique(all_selectors)
-    if #all_selectors == 0 then return nil end
 
     local lines = {
-        "/* heading-normalizer v1: generated per-book heading styles.",
-        "   Body text is styled by KOReader; this file only targets detected headings. */",
+        "/* book-theme v2: per-book typography; theme " .. Theme.hash(theme) .. ". */",
         "",
+        "body {",
+        family_declaration(body),
+        "    font-weight: " .. body.weight .. " !important;",
+        "}",
+        "",
+        "*, *::before, *::after {",
+        "    font-family: inherit !important;",
+        "}",
+        "",
+        "pre, code, kbd, samp, tt {",
+        "    font-family: monospace !important;",
+        "}",
+        "",
+        "p, li, dd, dt, blockquote {",
+        "    font-family: inherit !important;",
+        "    font-weight: inherit !important;",
+        "    line-height: inherit !important;",
+        "}",
+        "",
+        "blockquote {",
     }
-
-    local reset = {}
-    for _, selector in ipairs(all_selectors) do
-        reset[#reset + 1] = selector
-        reset[#reset + 1] = selector .. " *"
+    for _, declaration in ipairs(quote_declarations(quote_role)) do
+        lines[#lines + 1] = declaration
     end
-    lines[#lines + 1] = table.concat(reset, ",\n") .. " {"
-    lines[#lines + 1] = "    font-family: " .. font_family .. " !important;"
-    lines[#lines + 1] = "    font-style: normal !important;"
-    lines[#lines + 1] = "    text-indent: 0 !important;"
-    lines[#lines + 1] = "    hyphens: none !important;"
-    lines[#lines + 1] = "    page-break-after: avoid !important;"
     lines[#lines + 1] = "}"
     lines[#lines + 1] = ""
 
-    local descendant_reset = {}
-    for _, selector in ipairs(all_selectors) do
-        descendant_reset[#descendant_reset + 1] = selector .. " *"
-    end
-    lines[#lines + 1] = table.concat(descendant_reset, ",\n") .. " {"
-    lines[#lines + 1] = "    font-size: inherit !important;"
-    lines[#lines + 1] = "    font-weight: inherit !important;"
-    lines[#lines + 1] = "    line-height: inherit !important;"
-    lines[#lines + 1] = "}"
-    lines[#lines + 1] = ""
+    -- Real headings are always themed, even in a book with no pseudo-headings.
+    for _, heading in ipairs(REAL_HEADINGS) do
+        local role = roles[Theme.role_for_level(heading.level)]
+        append_rule(lines, heading.selectors, heading_declarations(heading.level, role))
 
+        -- Publisher spans inside a real heading get the same reset as detected
+        -- pseudo-headings, so a clean book and a converted book behave alike.
+        local descendants = {}
+        for _, selector in ipairs(heading.selectors) do
+            descendants[#descendants + 1] = selector .. " *"
+        end
+        append_rule(lines, descendants, DESCENDANT_RESET)
+    end
+
+    -- Detected pseudo-headings share the role declarations; only they get a
+    -- ToC hint, because the hint would not be valid on a real heading.
     for level = 1, 6 do
-        local selectors = by_level[level]
-        if selectors and #selectors > 0 then
-            local style = LEVELS[level]
-            selectors = sorted_unique(selectors)
-            lines[#lines + 1] = table.concat(selectors, ",\n") .. " {"
-            lines[#lines + 1] = "    font-size: " .. style.size .. " !important;"
-            lines[#lines + 1] = "    font-weight: " .. style.weight .. " !important;"
-            lines[#lines + 1] = "    line-height: " .. style.line .. " !important;"
-            lines[#lines + 1] = "    margin: " .. style.margin .. " !important;"
-            lines[#lines + 1] = "    text-align: left !important;"
-            if style.upper then
-                lines[#lines + 1] = "    text-transform: uppercase !important;"
+        local selectors = unique_sorted(heading_selectors[level] or {})
+        if #selectors > 0 then
+            local role = roles[Theme.role_for_level(level)]
+            local hint = toc_hints and ("    -cr-hint: toc-level" .. level .. ";") or nil
+            append_rule(lines, selectors, heading_declarations(level, role), hint)
+
+            -- Publisher spans inside a title must not keep their own size or
+            -- weight. The selector itself keeps the theme declarations.
+            local descendants = {}
+            for _, selector in ipairs(selectors) do
+                descendants[#descendants + 1] = selector .. " *"
             end
-            if style.spacing then
-                lines[#lines + 1] = "    letter-spacing: " .. style.spacing .. " !important;"
-            end
-            if options.toc_hints ~= false then
-                lines[#lines + 1] = "    -cr-hint: toc-level" .. level .. ";"
-            end
-            lines[#lines + 1] = "}"
-            lines[#lines + 1] = ""
+            append_rule(lines, descendants, DESCENDANT_RESET)
         end
     end
 
+    quote_selectors = unique_sorted(quote_selectors)
+    if #quote_selectors > 0 then
+        append_rule(lines, quote_selectors, quote_declarations(quote_role))
+        local descendants = {}
+        for _, selector in ipairs(quote_selectors) do
+            descendants[#descendants + 1] = selector .. " *"
+        end
+        append_rule(lines, descendants, {
+            "    font-weight: inherit !important;",
+        })
+    end
+
+    page_break_selectors = unique_sorted(page_break_selectors)
     if #page_break_selectors > 0 then
-        page_break_selectors = sorted_unique(page_break_selectors)
-        lines[#lines + 1] = table.concat(page_break_selectors, ",\n") .. " {"
-        lines[#lines + 1] = "    page-break-before: always !important;"
-        lines[#lines + 1] = "}"
-        lines[#lines + 1] = ""
+        append_rule(lines, page_break_selectors, {
+            "    page-break-before: always !important;",
+        })
     end
 
     return table.concat(lines, "\n")

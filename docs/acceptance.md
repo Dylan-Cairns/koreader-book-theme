@@ -2,13 +2,15 @@
 
 Run these on the configured Boox after a deploy. Record observed results in `STATUS.md`; do not mark a case passed from expectation alone.
 
-## 1. Clean book is left alone
+## 1. Clean book is themed, body size is not
 
 Open an EPUB whose chapter titles are real `<h1>`/`<h2>` elements.
 
-- Page appearance before and after enabling the plugin is the same.
-- **Status and detected headings** reports `no-pseudo-headings`.
-- No generated CSS rule targets body paragraphs.
+- Body text uses the configured body face and weight; real headings use their role faces and sizes.
+- Body **size** is unchanged: compare a page with the plugin off and on.
+- Footnotes keep their smaller size; publisher layout the theme does not own (tables, figures, captions) is untouched.
+- **Status and detected headings** reports `no-pseudo-headings` and shows the theme hash.
+- The generated CSS still contains the body rule and the `h1`–`h6` rules.
 
 ## 2. Calibre pseudo-headings are normalised
 

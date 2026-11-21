@@ -4,7 +4,9 @@
 
 Milestone 1 heading-normaliser engine is committed and verified offline. The product is pivoting to **Book Theme**: a role-based document typography plugin that owns body and heading type, detects pseudo-headings, and leaves the reading environment to KOReader.
 
-The repository directory was renamed from `koreader-heading-normalizer` to **`C:\Users\dylan\Documents\development\koreader-book-theme`** on 2026-11-21 (commit `83f4e2c` before the move; history preserved). The plugin directory, menu text and `heading_normalizer` settings keys are unchanged until work unit A.
+Work units A and B are complete. A (`f034e28`): plugin directory `plugin/book-theme.koplugin`, menu **Book Theme**, `book_theme*` settings with `heading_normalizer*` read fallback, device path `.../plugins/book-theme.koplugin`, legacy device install archived on deploy. B (`hn_theme.lua`, `hn_cache.lua`): role theme with defaults from the owner's tweak (body EB Garamond, headings Alegreya Sans), deterministic CSS (body, universal inherit, monospace exception, real `h1`–`h6`, pseudo levels, quote role), FNV-1a theme hash in a version-2 per-book cache. Unit C (theme UI) is next; the working spec is in ignored `local/plan/theme-spec.md`.
+
+The repository directory was renamed from `koreader-heading-normalizer` to **`C:\Users\dylan\Documents\development\koreader-book-theme`** on 2026-11-21 (commit `83f4e2c` before the move; history preserved).
 
 The next session must read `NEXT_AGENT.md` and execute its orchestration protocol. That file is the authoritative product contract where it supersedes the milestone-1 design.
 
@@ -45,6 +47,8 @@ Run on 2026-11-20/21 in this repository:
 - `.\tools\Setup-Toolchain.ps1` — pinned KOReader v2026.07.1 source plus base verified; LuaJIT 2.1.1783773675 ready.
 - `.\tools\Test.ps1` — Luacheck: 20 files, 0 warnings, 0 errors. LuaUnit: 36 tests, 36 successes. Handoff checks passed. Mock device checks passed: identity, deploy/backup/rollback, activation recovery, settings preservation, capture handling. No physical device operations in the mock test.
 - Device (Go6, KOReader v2026.07.2, same commit as v2026.07.1): deployed `heading-normalizer.koplugin`, enabled for all books, menu under Tools. Real-book scan of *Rethinking meditation.epub*: 26 documents, 1 stylesheet, 88 ToC entries, 2 pseudo-headings (`p.bibliography` 100, `p.other` 39). Generated CSS viewed on-device.
+- Unit A (2026-11-21, commit `f034e28`): `.\tools\Test.ps1` — Luacheck 23 files, 0 warnings; LuaUnit 41/41; handoff checks 47 files; mock device checks include legacy plugin archival on deploy and old-manifest restore into the new path.
+- Unit B (2026-11-21): `.\tools\Test.ps1` — Luacheck 27 files, 0 warnings; LuaUnit 81/81 (theme 21, cache 8, generate 14, scan 7, prior suites unchanged); handoff checks 51 files; mock device checks unchanged and passing. Default theme hash `74cfd6d8`. No device or ADB activity.
 - Device acceptance is **not** complete. Clean-EPUB behavior, pseudo-heading visual effect, progress/highlight preservation, per-book disable and restart persistence still need explicit checks.
 
 ## Device notes

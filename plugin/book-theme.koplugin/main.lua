@@ -13,10 +13,12 @@ local _ = require("gettext")
 
 local Scan = require("hn_scan")
 local Settings = require("hn_settings")
+local Theme = require("hn_theme")
+local Cache = require("hn_cache")
 
--- Cache format version. Kept at 1 so a cache written under the previous product
--- name stays valid; the theme hash arrives with the theme model.
-local VERSION = 1
+-- Cache format version. Version 2 adds the theme hash: a cache written under
+-- the old product name (version 1) has no hash, so it is rescanned once.
+local VERSION = 2
 
 -- Saves always write the current key. The legacy heading_normalizer* keys are
 -- read only as a fallback, so an existing device state survives the rename. A
@@ -27,6 +29,7 @@ local KEY = {
     enabled_legacy = "heading_normalizer_enabled",
     disabled = "book_theme_disabled",
     disabled_legacy = "heading_normalizer_disabled",
+    settings = "book_theme_settings",
     cache = "book_theme",
     cache_legacy = "heading_normalizer",
 }
@@ -84,6 +87,7 @@ local BookTheme = WidgetContainer:extend{
 function BookTheme:init()
     self.generated_css = nil
     self.report = nil
+    self:loadTheme()
     -- The same plugin is instantiated by the file manager, where there is no
     -- document or style-tweak pipeline. Only the reader gets a menu entry.
     if self.ui and self.ui.document and self.ui.menu then
@@ -92,6 +96,20 @@ function BookTheme:init()
     if self.ui and self.ui.styletweak then
         self:installCssHook()
     end
+end
+
+-- The stored theme is merged over the defaults and validated field by field.
+-- Invalid values fall back to their default and are logged; a broken settings
+-- table must never stop a book from opening.
+function BookTheme:loadTheme()
+    local stored = Settings.read(G_reader_settings, KEY.settings)
+    local theme, problems = Theme.load(stored)
+    self.theme = theme
+    self.theme_hash = Theme.hash(theme)
+    for _, problem in ipairs(problems) do
+        logger.warn("book-theme: theme setting ignored:", problem)
+    end
+    return theme
 end
 
 -- ReaderTypeset rebuilds the stylesheet on every ApplyStyleSheet. Appending
@@ -135,8 +153,7 @@ function BookTheme:scanNow()
     local book, err = ArchiveBook.new(path)
     if not book then return {error = err} end
     local ok, result = pcall(Scan.scan, book, {
-        toc_hints = true,
-        include_page_break = true,
+        theme = self.theme,
     })
     book:close()
     if not ok then
@@ -150,6 +167,7 @@ local function report_for_storage(result)
     local report = {
         skipped = result.skipped,
         error = result.error,
+        theme_hash = result.theme_hash,
         stats = result.stats,
         warnings = {},
         candidates = {},
@@ -196,7 +214,7 @@ function BookTheme:prepareForRender()
     end
 
     local cached = self:readCache()
-    if cached and cached.version == VERSION and cached.css ~= nil then
+    if Cache.is_valid(cached, VERSION, self.theme_hash) then
         self.generated_css = cached.css ~= "" and cached.css or nil
         self.report = cached.report
     else
@@ -205,12 +223,14 @@ function BookTheme:prepareForRender()
         self.generated_css = result and result.css or nil
         self.ui.doc_settings:saveSetting(KEY.cache, {
             version = VERSION,
+            theme_hash = self.theme_hash,
             css = self.generated_css or "",
             report = self.report,
             scanned_at = os.time(),
         })
         logger.info("book-theme: scanned",
             self.ui.document.file,
+            "theme", self.theme_hash,
             self.report and self.report.stats and self.report.stats.pseudo_headings or 0)
     end
 
@@ -235,6 +255,7 @@ function BookTheme:formatReport()
     if report.skipped then
         lines[#lines + 1] = _("Skipped: ") .. tostring(report.skipped)
     end
+    lines[#lines + 1] = string.format(_("Theme: %s"), tostring(report.theme_hash or self.theme_hash))
     local stats = report.stats or {}
     lines[#lines + 1] = string.format(
         _("Documents: %d   Stylesheets: %d   ToC entries: %d   Pseudo-headings: %d"),

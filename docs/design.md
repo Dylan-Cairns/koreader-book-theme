@@ -71,13 +71,25 @@ Only when at least two independent signals agree:
 
 Negative filters reject navigation, footnotes, tables, figures, captions, drop caps, poetry, epigraphs, bylines, front matter and long text. A missed pseudo-heading is acceptable; restyling body text is not.
 
+## Theme
+
+Book Theme owns the document type through a small theme table: the body face and weight, one style per heading role (Part, Chapter, Section, Minor heading) and a quote role. Real `h1`–`h6` and detected pseudo-headings share the same role scale, so a book with clean markup and a Calibre-converted book look the same.
+
+The theme is merged over built-in defaults and validated field by field before it reaches CSS. The font family pattern excludes quotes, semicolons, braces and newlines, sizes are restricted to a `rem` range and unknown roles or fields are rejected. Invalid stored values fall back to their default and are reported, so a corrupt settings table can never inject CSS or stop a book from opening.
+
+`Theme.canonical` serialises the effective theme into sorted `key=value;` lines and `Theme.hash` runs FNV-1a over it. The hash is the per-book cache key: changing one role font invalidates that book's cached CSS on the next open.
+
 ## Output
 
-Selectors use the element's existing tag and classes (`p.calibre7`, `div.chapter-title`), never a guessed class. All declarations use `!important` because publisher CSS is arbitrary.
+The generated stylesheet has a fixed shape: a banner with the theme hash, the body family and weight, a universal `font-family: inherit` reset, a monospace exception for `pre`/`code`/`kbd`/`samp`/`tt`, paragraph family/weight/line-height inheritance, quote type on `blockquote`, and real heading rules for `h1`–`h6`. Detected pseudo-headings add rules at their detected level, keep the publisher span reset, and are the only rules with a `-cr-hint: toc-levelN` hint. Detected quotes get the quote role and no hint.
 
-The generated CSS is deterministic: sorted selectors, fixed level table, no timestamps. The same book and plugin version produce byte-identical CSS, so the rendering hash does not churn.
+The base stylesheet is emitted even when no pseudo-heading is found, so `css` is never empty for a readable book. The scan still reports `no-pseudo-headings`.
 
-Levels use `rem`, which crengine resolves against KOReader's font size, so headings scale with the reader's setting and ignore publisher base sizes.
+Selectors use the element's existing tag and classes (`p.calibre7`, `div.chapter-title`), never a guessed class. All declarations use `!important` because publisher CSS is arbitrary, except `-cr-hint`, which is not a style declaration.
+
+The generated CSS is deterministic: sorted, deduplicated selectors, a fixed declaration order, no timestamps and no book text. The same book, theme and candidate set produce byte-identical CSS, so the rendering hash does not churn.
+
+Body **size** is deliberately not set. Levels use `rem`, which crengine resolves against KOReader's font size, so headings scale with the reader's setting while footnote and small-print sizes stay untouched.
 
 ## Cache
 
@@ -85,16 +97,17 @@ The generated CSS and a compact report live in the book's sidecar:
 
 ```lua
 book_theme = {
-    version = 1,
-    css = "...",          -- "" means "scanned, nothing to do"
+    version = 2,
+    theme_hash = "74cfd6d8",
+    css = "...",
     report = { ... },
     scanned_at = 1234567890,
 }
 ```
 
-A version bump invalidates the cache. Re-scan deletes the setting; the next open rebuilds it.
+A cache is reused only when its version, `css` and theme hash match the current build. A mismatch triggers one lazy rescan on the next open. The Heading Normaliser cache (version 1, no hash) therefore rebuilds once per book. Changing a role font changes the theme hash and rebuilds exactly the affected books.
 
-The rename to Book Theme keeps the cache version at 1: a `heading_normalizer` cache written by the old plugin is still valid and is read through a fallback, so upgrading does not rescan every book. Saves always write `book_theme`, and the legacy key is left untouched.
+`css = ""` is a completed scan that produced no stylesheet (for example a skipped book); `css = nil` is not a completed scan. Re-scan deletes the setting; the next open rebuilds it. Saves always write `book_theme`; the legacy `heading_normalizer` key is read as a fallback and left untouched.
 
 ## Failure containment
 
