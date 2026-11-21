@@ -1,6 +1,8 @@
-# KOReader Heading Normaliser
+# Book Theme
 
-A KOReader plugin that finds chapter headings which are not real `<h1>`–`<h6>` elements — the `<p class="calibre7">Chapter One</p>` kind — and gives them the same typography as the rest of your library.
+> **Rename in progress.** The repository is now `koreader-book-theme`. The plugin directory, menu text and settings keys are still `heading-normalizer`; see work unit A in `NEXT_AGENT.md`.
+
+A KOReader plugin that finds chapter headings which are not real `<h1>`–`<h6>` elements — the `<p class="calibre7">Chapter One</p>` kind — and gives them the same typography as the rest of your library. The Book Theme milestone extends it into one house style for body text, headings and quotes.
 
 It does **not** rewrite the book. It generates a small per-book stylesheet, injects it through KOReader's style-tweak pipeline before the first render, and caches the result in the book's sidecar. Progress, highlights, bookmarks and reading settings stay attached to the original file.
 

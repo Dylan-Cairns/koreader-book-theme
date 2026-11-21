@@ -2,9 +2,9 @@
 
 You are the primary agent for the **Book Theme** project. Work only in:
 
-`C:\Users\dylan\Documents\development\koreader-heading-normalizer`
+`C:\Users\dylan\Documents\development\koreader-book-theme`
 
-The repository directory keeps its current name for now. The product, plugin directory, menu and documentation become **Book Theme**. Do not rename the repository directory during a live session.
+The repository directory was renamed from `koreader-heading-normalizer` to `koreader-book-theme` on 2026-11-21. The plugin directory, menu text and module names are still `heading-normalizer`; renaming those is work unit A. Do not rename the repository directory again during a live session.
 
 Read, in this order:
 
@@ -50,9 +50,9 @@ Rules:
 
 ## Current state
 
-- Milestone 1 heading-normaliser engine is implemented and committed (`81dcd89`).
+- Milestone 1 heading-normaliser engine is implemented and committed (`81dcd89`). The Book Theme pivot, global compaction/subagent settings and this orchestration prompt are committed in `83f4e2c`; the repository directory was then renamed to `koreader-book-theme`.
 - `tools/Test.ps1` passes: Luacheck 20 files, 36 LuaUnit tests, handoff and mock-device checks.
-- Device: Go6, KOReader **v2026.07.2** (tag resolves to the same commit as v2026.07.1), plugin deployed at `/sdcard/koreader/plugins/heading-normalizer.koplugin`, enabled for all books.
+- Device: Go6, KOReader **v2026.07.2** (tag resolves to the same commit as v2026.07.1), plugin deployed at `/sdcard/koreader/plugins/heading-normalizer.koplugin`, enabled for all books. The deployed build was refreshed on 2026-11-21 after the diagnostic markers were removed; the menu still attaches under Tools.
 - Real-book scan observed: 26 documents, 1 stylesheet, 88 ToC entries, 2 pseudo-headings (`p.bibliography` score 100, `p.other` score 39) in *Rethinking meditation.epub*. Generated CSS and the report were viewed on-device.
 - `p.other` is a possible false positive. The corpus audit must check it and similar patterns.
 - Menu must use `sorting_hint = "tools"`; nesting under `document_settings` did not attach.
@@ -104,12 +104,14 @@ Do not edit the plugin. Do not touch the device.
 
 ## Work units (sequential)
 
-### A. Rename to Book Theme
+### A. Rename the plugin to Book Theme
 
+- The repository directory is already `koreader-book-theme`; do not rename it again.
 - Product, plugin directory (`plugin/book-theme.koplugin`), menu text, docs and harness paths.
 - Keep the `hn_*` engine module names or rename consistently; update `tests/run.lua`, `tools/Device.ps1`, mock-device checks and `opencode.jsonc` watcher if needed.
 - Migrate old settings/cache keys (`heading_normalizer*`) with a fallback; do not lose the owner's current enabled state.
-- Update `README.md`, `AGENTS.md`, `docs/design.md`, `docs/harness.md`.
+- Migrate the deployed plugin directory on the device: deploy `book-theme.koplugin`, confirm the old `heading-normalizer.koplugin` is archived rather than left active, and keep the owner's settings.
+- Update `README.md`, `AGENTS.md`, `docs/design.md`, `docs/harness.md`, `docs/device-runbook.md`.
 - Tests and a commit.
 
 ### B. Theme model and CSS generator

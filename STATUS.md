@@ -4,6 +4,8 @@
 
 Milestone 1 heading-normaliser engine is committed and verified offline. The product is pivoting to **Book Theme**: a role-based document typography plugin that owns body and heading type, detects pseudo-headings, and leaves the reading environment to KOReader.
 
+The repository directory was renamed from `koreader-heading-normalizer` to **`C:\Users\dylan\Documents\development\koreader-book-theme`** on 2026-11-21 (commit `83f4e2c` before the move; history preserved). The plugin directory, menu text and `heading_normalizer` settings keys are unchanged until work unit A.
+
 The next session must read `NEXT_AGENT.md` and execute its orchestration protocol. That file is the authoritative product contract where it supersedes the milestone-1 design.
 
 ## Decisions
@@ -36,7 +38,7 @@ Run on 2026-11-20/21 in this repository:
 
 ## Next action
 
-Start a new session in this repository (the global compaction and subagent settings are active) and run `/orchestrate`, or say: “Read `NEXT_AGENT.md` and execute it.” The first step is the read-only EPUB corpus audit; implementation follows sequentially.
+Start a new session in `C:\Users\dylan\Documents\development\koreader-book-theme` (the global compaction and subagent settings are active) and run `/orchestrate`, or say: “Read `NEXT_AGENT.md` and execute it.” The first step is the read-only EPUB corpus audit; implementation follows sequentially.
 
 ## Open work
 
