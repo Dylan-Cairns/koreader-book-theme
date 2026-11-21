@@ -30,9 +30,12 @@ Upgrading from Heading Normaliser: deploy with `tools/Device.ps1 Deploy`, which 
 
 - **Enable for all books**
 - **Disable for this book**
-- **Status and detected headings** — what was found, with level, selector and confidence
+- **Theme** — one editor per role: Body (font, weight), Part/Chapter/Section/Minor heading (font, weight, size, case, alignment) and Quote/epigraph (font, weight, style). **Restore default theme** is at the end.
+- **Prepare KOReader settings** — sets KOReader's Font Weight to 0 because the theme owns weight; size, spacing, margins and contrast are left alone. Contrast has to stay in KOReader because CSS cannot scope gamma.
+- **Status and detected headings** — the current theme summary followed by the scan report (level, selector, confidence)
 - **View generated CSS**
 - **Copy generated CSS**
+- **Export generated CSS as style tweak** — writes `koreader/styletweaks/book-theme.css`
 - **Re-scan this book on next open**
 
 ## Limits

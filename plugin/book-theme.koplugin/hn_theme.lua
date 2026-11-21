@@ -358,22 +358,74 @@ function Theme.role_for_level(level)
     return LEVEL_ROLES[level]
 end
 
+-- Body is edited through the same call as a heading role, but it lives at the
+-- top level of the theme rather than under `roles`.
+local function role_path(role)
+    return role == "body" and "body" or ("roles." .. role)
+end
+
 -- Return a new validated theme with one role field changed, or nil and a
--- problem list when the role, field or value is not allowed.
+-- problem list when the role, field or value is not allowed. This is the only
+-- write path for the UI; it never mutates the theme it was given.
 function Theme.set_role(theme, role, field, value)
-    if role == "body" or not ROLE_FIELDS[role] then
+    local fields = ROLE_FIELDS[role]
+    if not fields then
         return nil, {"unknown role '" .. tostring(role) .. "'"}
     end
-    if not ROLE_FIELDS[role][field] then
-        return nil, {"unknown field 'roles." .. tostring(role) .. "." .. tostring(field) .. "'"}
+    if not fields[field] then
+        return nil, {"unknown field '" .. role_path(role) .. "." .. tostring(field) .. "'"}
     end
     local problem = field_problem(field, value)
     if problem then
-        return nil, {"roles." .. role .. "." .. field .. " " .. problem}
+        return nil, {role_path(role) .. "." .. field .. " " .. problem}
     end
     local result = Theme.load(theme)
-    result.roles[role][field] = value
+    if role == "body" then
+        result.body[field] = value
+    else
+        result.roles[role][field] = value
+    end
     return result
+end
+
+-- Ordered as the menu presents them; body is edited separately.
+Theme.ROLE_ORDER = ROLE_ORDER
+
+-- Plain English labels, deliberately without gettext: this module has no
+-- KOReader dependency. main.lua passes them through `_()` when displaying.
+Theme.ROLE_LABELS = {
+    body = "Body",
+    part = "Part heading",
+    chapter = "Chapter heading",
+    section = "Section heading",
+    minor = "Minor heading",
+    quote = "Quote / epigraph",
+}
+
+-- One-line summary of a role for the status screen. Optional fields are only
+-- mentioned when they differ from the generator's defaults, so a default theme
+-- stays short and the output is stable for tests.
+function Theme.describe(theme, role)
+    if type(theme) ~= "table" then return "" end
+    if role == "body" then
+        local body = theme.body
+        if type(body) ~= "table" then return "" end
+        return tostring(body.family or "?") .. ", " .. tostring(body.weight or "?")
+    end
+    if not ROLE_FIELDS[role] then return "" end
+    local values = type(theme.roles) == "table" and theme.roles[role] or nil
+    if type(values) ~= "table" then return "" end
+    local parts = {
+        tostring(values.family or "?"),
+        tostring(values.weight or "?"),
+    }
+    if values.size then parts[#parts + 1] = values.size end
+    if values.style and (role == "quote" or values.style ~= "normal") then
+        parts[#parts + 1] = values.style
+    end
+    if values.case == "upper" then parts[#parts + 1] = "uppercase" end
+    if values.align == "center" then parts[#parts + 1] = "centered" end
+    return table.concat(parts, ", ")
 end
 
 return Theme
