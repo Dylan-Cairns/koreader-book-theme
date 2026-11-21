@@ -101,4 +101,49 @@ function TestEpub:testFindsTocAndEncryption()
     luaunit.assertTrue(Epub.is_encrypted(reader))
 end
 
+local FRONT_OPF = [[
+<package version="3.0">
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="title" href="text/title.xhtml" media-type="application/xhtml+xml"/>
+    <item id="btp" href="text/s003-BookTitlePage-01.xhtml" media-type="application/xhtml+xml"/>
+    <item id="toc" href="text/contents.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chap" href="text/s010-Chapter-001.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chap-title" href="text/chapter-title.xhtml" media-type="application/xhtml+xml"/>
+    <item id="discover" href="text/discover.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <guide>
+    <reference type="copyright-page" href="text/copyright.xhtml"/>
+    <reference type="text" href="text/s010-Chapter-001.xhtml"/>
+  </guide>
+  <spine><itemref idref="title"/></spine>
+</package>
+]]
+
+local FRONT_NAV = [[
+<html><body>
+<nav epub:type="landmarks"><ol>
+  <li><a href="text/dedication.xhtml" epub:type="dedication">Dedication</a></li>
+</ol></nav>
+</body></html>
+]]
+
+-- The filename fallback is the last resort for packages with neither a guide
+-- nor landmarks. It must find publisher-prefixed stems (`s003-BookTitlePage`)
+-- without treating `chapter-title` or `discover` as furniture.
+function TestEpub:testFrontMatterPaths()
+    local reader = Helpers.memory_reader({["OEBPS/nav.xhtml"] = FRONT_NAV})
+    local opf = Epub.parse_opf(FRONT_OPF, "OEBPS/content.opf")
+    local paths = Epub.front_matter_paths(reader, opf)
+
+    luaunit.assertEquals(paths["OEBPS/text/copyright.xhtml"], "guide:copyright-page")
+    luaunit.assertEquals(paths["OEBPS/text/dedication.xhtml"], "landmark:dedication")
+    luaunit.assertEquals(paths["OEBPS/text/title.xhtml"], "filename:title")
+    luaunit.assertEquals(paths["OEBPS/text/s003-BookTitlePage-01.xhtml"], "filename:titlepage")
+    luaunit.assertEquals(paths["OEBPS/text/contents.xhtml"], "filename:contents")
+    luaunit.assertNil(paths["OEBPS/text/s010-Chapter-001.xhtml"])
+    luaunit.assertNil(paths["OEBPS/text/chapter-title.xhtml"])
+    luaunit.assertNil(paths["OEBPS/text/discover.xhtml"])
+end
+
 return TestEpub

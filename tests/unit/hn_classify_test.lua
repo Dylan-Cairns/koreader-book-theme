@@ -41,6 +41,14 @@ local function by_selector(candidates)
     return result
 end
 
+local function headings(candidates)
+    local result = {}
+    for _, candidate in ipairs(candidates) do
+        if candidate.role ~= "quote" then result[candidate.selector] = candidate end
+    end
+    return result
+end
+
 function TestClassify:testTocTargetWinsInsideWrapper()
     local candidates = classify(SAMPLE, nil, {
         {path = "chapter1.xhtml", fragment = "ch1", title = "Chapter One", depth = 1},
@@ -61,11 +69,14 @@ end
 
 function TestClassify:testNegativeFixturesAreRejected()
     local found = by_selector(classify(SAMPLE))
-    luaunit.assertNil(found["p.epigraph"])
-    luaunit.assertNil(found["p.poem"])
-    luaunit.assertNil(found["p.dropcap"])
-    luaunit.assertNil(found["p.body"])
-    luaunit.assertNil(found["h2"])
+    -- Epigraphs and poems are quotes now, never headings.
+    luaunit.assertEquals(found["p.epigraph"].role, "quote")
+    luaunit.assertEquals(found["p.poem"].role, "quote")
+    luaunit.assertNil(headings(classify(SAMPLE))["p.epigraph"])
+    luaunit.assertNil(headings(classify(SAMPLE))["p.poem"])
+    luaunit.assertNil(headings(classify(SAMPLE))["p.dropcap"])
+    luaunit.assertNil(headings(classify(SAMPLE))["p.body"])
+    luaunit.assertNil(headings(classify(SAMPLE))["h2"])
 end
 
 function TestClassify:testLayoutOnlyCandidateNeedsTwoSignals()

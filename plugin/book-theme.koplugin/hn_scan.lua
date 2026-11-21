@@ -8,6 +8,7 @@ local Css = require("hn_css")
 local Classify = require("hn_classify")
 local Generate = require("hn_generate")
 local Theme = require("hn_theme")
+local Util = require("hn_util")
 
 local Scan = {}
 
@@ -17,7 +18,37 @@ local DEFAULTS = {
     max_css_documents = 24,
     max_css_bytes = 2 * 1024 * 1024,
     min_layout_score = 38,
+    max_candidates = 60,
 }
+
+-- Deterministic rule budget. A book-wide selector explosion is worse than no
+-- styling, but a ToC rule is never dropped: the ToC is the book's own ground
+-- truth and its selectors are exact (often one id per rule). The cap therefore
+-- applies to inferred layout and semantic rules only, ranked by score and then
+-- selector. Output order is preserved so the CSS stays deterministic.
+local function limit_candidates(candidates, limit)
+    if not limit then return candidates end
+    local toc, inferred = {}, {}
+    for _, candidate in ipairs(candidates) do
+        if Util.table_contains(candidate.reasons, "toc") then
+            toc[candidate] = true
+        else
+            inferred[#inferred + 1] = candidate
+        end
+    end
+    if #inferred <= limit then return candidates end
+    table.sort(inferred, function(left, right)
+        if left.score ~= right.score then return left.score > right.score end
+        return left.selector < right.selector
+    end)
+    local keep = {}
+    for index = 1, limit do keep[inferred[index]] = true end
+    local kept = {}
+    for _, candidate in ipairs(candidates) do
+        if keep[candidate] or toc[candidate] then kept[#kept + 1] = candidate end
+    end
+    return kept
+end
 
 local function read_limited(reader, path, limit, warnings)
     local content = Epub.read(reader, path)
@@ -86,17 +117,30 @@ function Scan.scan(reader, options)
             result.warnings[#result.warnings + 1] = "no navigation document"
         end
 
-        local candidates = {}
+        -- Front matter (cover, title page, copyright, ToC, dedication...) is
+        -- classified as furniture, not body text: no pseudo-heading or quote
+        -- rules are generated for those documents.
+        local front_matter = Epub.front_matter_paths(reader, opf)
+        settings.front_matter = front_matter
+
+        local candidates, selector_totals = {}, {}
         for _, path in ipairs(documents) do
+            if front_matter[path] then
+                result.stats.front_matter_documents =
+                    (result.stats.front_matter_documents or 0) + 1
+            end
             local html = read_limited(reader, path, settings.max_html_bytes, result.warnings)
             if html then
                 local parsed, doc = pcall(Html.parse, html)
                 if parsed then
-                    local classified, found = pcall(Classify.classify_file,
+                    local classified, found, totals = pcall(Classify.classify_file,
                         path, doc, rules, toc, settings)
                     if classified then
-                        for _, candidate in ipairs(found) do
+                        for _, candidate in ipairs(found or {}) do
                             candidates[#candidates + 1] = candidate
+                        end
+                        for selector, count in pairs(totals or {}) do
+                            selector_totals[selector] = (selector_totals[selector] or 0) + count
                         end
                     else
                         result.warnings[#result.warnings + 1] = path .. ": " .. tostring(found)
@@ -107,15 +151,23 @@ function Scan.scan(reader, options)
             end
         end
 
-        local merged = Classify.merge(candidates)
+        local merged = limit_candidates(Classify.merge(candidates, selector_totals),
+            settings.max_candidates)
         result.stats.documents = #documents
         result.stats.stylesheets = #css_documents
         result.stats.toc_entries = #toc
-        result.stats.pseudo_headings = #merged
+        local headings, quotes = 0, 0
         for _, candidate in ipairs(merged) do
-            local key = "level" .. tostring(candidate.level)
-            result.stats[key] = (result.stats[key] or 0) + 1
+            if candidate.role == "quote" then
+                quotes = quotes + 1
+            else
+                headings = headings + 1
+                local key = "level" .. tostring(candidate.level)
+                result.stats[key] = (result.stats[key] or 0) + 1
+            end
         end
+        result.stats.pseudo_headings = headings
+        result.stats.quote_rules = quotes
 
         if #merged == 0 then
             result.skipped = "no-pseudo-headings"

@@ -9,9 +9,60 @@ local Epub = {}
 local XHTML_EXTENSIONS = {xhtml = true, html = true, htm = true}
 local CSS_EXTENSIONS = {css = true}
 
+-- Documents that are furniture rather than body text. Pseudo-heading detection
+-- is skipped for them entirely; the real `h1`-`h6` rules still apply.
+local FRONT_MATTER_TYPES = {
+    cover = true, ["title-page"] = true, titlepage = true,
+    ["copyright-page"] = true, toc = true, contents = true,
+    dedication = true, epigraph = true, imprint = true, colophon = true,
+}
+
+-- Filename fallback for packages that declare neither a guide nor landmarks.
+-- Publisher prefixes are common (`s003-BookTitlePage-01.xhtml`), so the
+-- multi-word stems are matched anywhere in the name. Short generic words are
+-- only matched as whole separators-delimited tokens, and `title` only as a
+-- leading word, so `chapter-title.xhtml` is not furniture.
+local FRONT_MATTER_SUBSTRINGS = {
+    "titlepage", "title_page", "halftitle", "half_title", "copyright",
+    "colophon", "imprint", "tableofcontents", "frontmatter",
+}
+local FRONT_MATTER_WORDS = {"cover", "toc", "contents", "nav"}
+
+local function is_separator(character)
+    return character == "-" or character == "_" or character == "."
+end
+
+local function basename_is_front_matter(name)
+    local stem = name:lower():gsub("%.[%a0-9]+$", "")
+    for _, token in ipairs(FRONT_MATTER_SUBSTRINGS) do
+        if stem:find(token, 1, true) then return token end
+    end
+    if stem == "title" or stem:match("^title[-_.]") then return "title" end
+    for _, token in ipairs(FRONT_MATTER_WORDS) do
+        local start = 1
+        while true do
+            local found = stem:find(token, start, true)
+            if not found then break end
+            local before_ok = found == 1 or is_separator(stem:sub(found - 1, found - 1))
+            local after = found + #token
+            local after_ok = after > #stem or is_separator(stem:sub(after, after))
+            if before_ok and after_ok then return token end
+            start = found + 1
+        end
+    end
+    return nil
+end
+
 local function attrs_of(tag)
     if not tag then return {} end
     return Util.parse_attrs(tag)
+end
+
+local function has_property(item, property)
+    for token in (item.properties or ""):gmatch("%S+") do
+        if token == property then return true end
+    end
+    return false
 end
 
 local function extension(path)
@@ -56,6 +107,7 @@ function Epub.parse_opf(xml, opf_path)
         manifest = {},
         manifest_by_id = {},
         spine = {},
+        guide = {},
         version = "2.0",
         toc_id = nil,
     }
@@ -95,6 +147,19 @@ function Epub.parse_opf(xml, opf_path)
         local attrs = attrs_of(tag)
         if attrs.idref then
             opf.spine[#opf.spine + 1] = attrs.idref
+        end
+    end
+
+    -- EPUB 2 reading-system guide. Only the type and href are needed: the
+    -- front-matter pass resolves the href against the package directory.
+    local guide = xml:match("<guide[^>]*>(.-)</guide>") or ""
+    for tag in guide:gmatch("<reference[%s][^>]->") do
+        local attrs = attrs_of(tag)
+        if attrs.type and attrs.href then
+            opf.guide[#opf.guide + 1] = {
+                type = attrs.type:lower(),
+                href = attrs.href,
+            }
         end
     end
 
@@ -224,6 +289,83 @@ function Epub.parse_nav(xml, base_dir)
         entry.href = nil
     end
     return entries
+end
+
+-- EPUB 3 landmarks navigation: it names the front-matter documents the way the
+-- EPUB 2 guide does. Returns { {type = "title-page", href = "text/title.xhtml"}, ... }.
+function Epub.parse_landmarks(xml)
+    local entries = {}
+    if not xml then return entries end
+
+    for block in xml:gmatch("<nav[^>]->.-</nav>") do
+        local opening = block:match("^<nav[^>]->")
+        local attrs = attrs_of(opening)
+        local kind = ((attrs["epub:type"] or "") .. " " .. (attrs.role or "")):lower()
+        if kind:find("landmark", 1, true) then
+            for tag in block:gmatch("<a[%s][^>]->") do
+                local link = attrs_of(tag)
+                if link.href and link["epub:type"] then
+                    entries[#entries + 1] = {
+                        type = link["epub:type"]:lower(),
+                        href = link.href,
+                    }
+                end
+            end
+        end
+    end
+    return entries
+end
+
+-- Map of document path -> reason for every document that is front matter. The
+-- scan skips pseudo-heading detection (all tiers, including quotes) for these.
+-- Three independent sources are merged: the OPF guide, EPUB 3 landmarks and a
+-- filename fallback for packages that declare neither.
+function Epub.front_matter_paths(reader, opf)
+    local paths = {}
+    if not opf then return paths end
+    local base = Util.dirname(opf.path or "")
+
+    local function add(path, reason)
+        path = Util.normalize_path(path or "")
+        if path ~= "" and not paths[path] then paths[path] = reason end
+    end
+
+    local function add_kinds(kind_text, href, from_dir, prefix)
+        for token in (kind_text or ""):gmatch("%S+") do
+            local kind = token:match("([^:]+)$") or token
+            kind = kind:lower()
+            if FRONT_MATTER_TYPES[kind] then
+                local path = split_href(href)
+                add(Util.join_path(from_dir, path), prefix .. kind)
+                return
+            end
+        end
+    end
+
+    for _, reference in ipairs(opf.guide or {}) do
+        add_kinds(reference.type, reference.href, base, "guide:")
+    end
+
+    for _, item in ipairs(opf.manifest) do
+        if is_xhtml_item(item) then
+            local name = Util.basename(item.path)
+            local token = basename_is_front_matter(name)
+            if token then add(item.path, "filename:" .. token) end
+        end
+    end
+
+    for _, item in ipairs(opf.manifest) do
+        if is_xhtml_item(item) and has_property(item, "nav") then
+            local xml = Epub.read(reader, item.path)
+            local from_dir = Util.dirname(item.path)
+            for _, entry in ipairs(Epub.parse_landmarks(xml)) do
+                add_kinds(entry.type, entry.href, from_dir, "landmark:")
+            end
+            break
+        end
+    end
+
+    return paths
 end
 
 function Epub.toc(reader, opf)

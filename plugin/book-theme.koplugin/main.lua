@@ -21,7 +21,9 @@ local Cache = require("hn_cache")
 
 -- Cache format version. Version 2 adds the theme hash: a cache written under
 -- the old product name (version 1) has no hash, so it is rescanned once.
-local VERSION = 2
+-- Version 3 changes detection (semantic kind gate, ToC shape check, quotes),
+-- so every cached stylesheet is rebuilt once.
+local VERSION = 3
 
 -- Saves always write the current key. The legacy heading_normalizer* keys are
 -- read only as a fallback, so an existing device state survives the rename. A

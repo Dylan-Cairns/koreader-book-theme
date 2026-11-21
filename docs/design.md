@@ -47,29 +47,49 @@ Tests use an in-memory implementation, so the whole scan path runs under host Lu
 
 ## Detection
 
+Detection is precision-first: a missed pseudo-heading is acceptable, restyling body text is not. Three tiers feed one merge step; quotes are detected separately.
+
+### Front matter
+
+Cover, title page, half title, copyright, contents, dedication, imprint, colophon and epigraph documents are furniture. Pseudo-heading and quote detection is skipped for the whole document; real `h1`–`h6` still get the theme. Paths come from three sources, merged:
+
+- the EPUB 2 OPF `<guide>` (`title-page`, `copyright-page`, `toc`, …),
+- EPUB 3 landmarks (`<nav epub:type="landmarks">` with `epub:type` on each link),
+- a filename fallback (`title`, `contents`, `copyright`, `cover`, `nav`, and unambiguous stems such as `titlepage`/`halftitle` anywhere in the name, so `s003-BookTitlePage-01.xhtml` is recognised).
+
+A heading inside a `titlepage`, `halftitlepage`, `cover`, `copyright`, `imprint`, `colophon`, `dedication` or `epigraph` container is furniture even when the containing document was not recognised as front matter; embedded title pages inside a chapter file are common.
+
 ### Tier 1: navigation
 
-Parse `META-INF/container.xml` → OPF → NCX or EPUB 3 nav. For each ToC entry, resolve `file#fragment` to the element with that `id` (or the first block in that file). If the target is a wrapper, use its first block child with short text. Level comes from title semantics and depth, not raw depth alone: a flat ToC of forty chapters is forty chapters, not forty part titles.
-
-Front matter (cover, title page, copyright, contents) is skipped.
+Parse `META-INF/container.xml` → OPF → NCX or EPUB 3 nav. For each ToC entry, resolve `file#fragment` to the element with that `id`, or the first block in that file. `body`/`html` may be the starting point (ids on `<body>` are common) but never the final target. A wrapper target is descended to its first short block; a target that is a real heading, has no visible text, is longer than 140 characters, contains a URL, is a long sentence ending in a full stop (over 60 characters), or holds two or more long block children is rejected. Level comes from title semantics and depth, not raw depth alone: a flat ToC of forty chapters is forty chapters, not forty part titles.
 
 ### Tier 2: EPUB semantics
 
-`epub:type`, `role`, `aria-level`. A wrapper such as `<section epub:type="chapter">` is reduced to its first short block.
+Only an explicit allow-list of `epub:type`/`role` kinds counts (`chapter`, `part`, `title`, `subtitle`, `introduction`, `preface`, …). A deny token wins even if another token is allowed (`biblioentry`, `index-entry`, `endnote`, `footnote`, `noteref`, `backlink`, `pagebreak`, `caption`, `cover`, `titlepage`, `toc`, `rearnote`, `poem`, `verse`, …). A wrapper is reduced to its first short block, to a depth of three. A real `h1`–`h6` ends the walk, and a wrapper that contains a real heading is not a candidate: the global heading rule already covers it. Semantic candidates score 80.
 
 ### Tier 3: layout
 
-Only when at least two independent signals agree:
+Only when at least two independent signals agree, the score reaches `min_layout_score` (38), **and** one shape signal is present:
 
-- `page-break-before` on the element or an ancestor
-- font size clearly above body size
+- `page-break-before` on the element or an ancestor (score, but never shape on its own)
+- font size clearly above body size (ratio ≥ 1.12)
 - bold and/or centred
 - first block in the file
 - class or id name containing chapter/part/title/section
 - class used once in the file
 - uppercase, large top margin, bold child
 
-Negative filters reject navigation, footnotes, tables, figures, captions, drop caps, poetry, epigraphs, bylines, front matter and long text. A missed pseudo-heading is acceptable; restyling body text is not.
+The shape gate (`name_hint`, ratio ≥ 1.12, or bold + centred) stops a page break plus first-block from turning an ordinary opening paragraph into a heading.
+
+Negative filters reject navigation, footnotes, tables, figures, captions, drop caps, poetry, epigraphs, bylines, front matter, denied semantic kinds and long text.
+
+### Quotes
+
+Epigraphs, verse and poems are styled with the separate quote role, never as headings: a short `epigraph`/`verse`/`poem` block, or any blockquote outside a heading. Quotes are skipped in ToC/nav/footnote containers, notes documents (note, endnote, footnote, bibliography, index, glossary), front matter, the first block of a document, and any selector already used as a heading. A quote rule carries no `-cr-hint`: it must not enter the alternative ToC.
+
+### Merge
+
+Per-document candidates are merged by selector. A selector may not restyle many more visible blocks than were judged heading-like (`occurrences >= 3 and count * 2 < occurrences` is rejected); this bounds `div#thework` and `li.Biblio`-style blast radii. A ToC target that hits such a shared selector is kept when it carries its own id: the entry's fragment names one element, so `tag#id` replaces the class selector and restyles exactly that element. Id fallback applies to the ToC tier only. A layout-only selector whose text repeats verbatim in three or more documents is a running head and is dropped; ToC and semantic candidates are kept. The rule budget of 60 applies to inferred layout and semantic rules (score, then selector, deterministically); ToC rules are always kept and are not counted against it.
 
 ## Theme
 
@@ -97,7 +117,7 @@ The generated CSS and a compact report live in the book's sidecar:
 
 ```lua
 book_theme = {
-    version = 2,
+    version = 3,
     theme_hash = "74cfd6d8",
     css = "...",
     report = { ... },

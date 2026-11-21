@@ -1215,8 +1215,15 @@ def audit_book(epub_path, rel_path):
             resolved["id"] += 1
             pattern = normalize_pattern(element.tag, element.classes, element.element_id)
             record = target_patterns.setdefault(
-                pattern, {"entries": 0, "real_heading": False, "lengths": []})
+                pattern, {"entries": 0, "real_heading": False, "lengths": [],
+                          "id_keys": {}})
             record["entries"] += 1
+            # An exact-id rule (`p#sub2_6`) covers only the entries whose target
+            # carries that id; keep them countable so the recall estimate can
+            # credit id rules, which the class pattern cannot express.
+            if element.element_id:
+                id_key = normalize_pattern(element.tag, [], element.element_id)
+                record["id_keys"][id_key] = record["id_keys"].get(id_key, 0) + 1
             record["real_heading"] = record["real_heading"] or element.tag in HEADING_TAGS
             record["lengths"].append(len(element.text))
 
@@ -1235,6 +1242,7 @@ def audit_book(epub_path, rel_path):
                     "entries": record["entries"],
                     "real_heading": record["real_heading"],
                     "median_text_len": statistics.median(record["lengths"]),
+                    "id_keys": dict(sorted(record["id_keys"].items())),
                 }
                 for pattern, record in sorted(target_patterns.items())
             },
@@ -1759,10 +1767,16 @@ def verdict_summary(books, classifier, verdicts, report, source):
         for pattern, target in book.get("toc", {}).get("target_patterns", {}).items():
             if target.get("real_heading"):
                 continue
-            hit = (book["id"], pattern) in detected
+            covered = target["entries"] if (book["id"], pattern) in detected else 0
+            if not covered:
+                # An id-named target can only be covered by an exact id rule.
+                covered = sum(count for id_key, count
+                              in (target.get("id_keys") or {}).items()
+                              if (book["id"], id_key) in detected)
+            hit = covered > 0
             raw["entries"] += target["entries"]
             raw["patterns"] += 1
-            raw["covered"] += target["entries"] if hit else 0
+            raw["covered"] += covered
             is_wrapper = target.get("median_text_len", 0) >= WRAPPER_TEXT_LEN
             if is_wrapper or NON_HEADING_TARGET.search(pattern):
                 excluded.append({"book": book["id"], "pattern": pattern,
@@ -1770,7 +1784,7 @@ def verdict_summary(books, classifier, verdicts, report, source):
                 continue
             shaped["entries"] += target["entries"]
             shaped["patterns"] += 1
-            shaped["covered"] += target["entries"] if hit else 0
+            shaped["covered"] += covered
             if not hit:
                 misses.append({"book": book["id"], "pattern": pattern,
                                "entries": target["entries"],

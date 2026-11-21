@@ -30,7 +30,9 @@ Open an EPUB without a usable NCX/nav, where chapters are a `page-break-before` 
 
 ## 4. Negative fixtures stay untouched
 
-In a book containing poetry, an epigraph, a drop cap and a footnote block, none of those elements take the heading typography.
+In a book containing poetry, an epigraph, a drop cap and a footnote block, none of those elements take the heading typography. Poetry and epigraphs instead use the quote role (italic body face), and quote rules never appear in the alternative ToC.
+
+Also open a book with a title page, half title, copyright page and contents. Their type keeps the theme's body and real-heading rules but no pseudo-heading rule is generated for those documents. The **Status** report counts them as front-matter documents.
 
 ## 5. Per-book switch
 
