@@ -8,6 +8,26 @@ The repository directory was renamed from `koreader-heading-normalizer` to **`C:
 
 The next session must read `NEXT_AGENT.md` and execute its orchestration protocol. That file is the authoritative product contract where it supersedes the milestone-1 design.
 
+## Plan — Book Theme session 2026-11-21
+
+Owner approved end-to-end execution: corpus audit, work units A–E, device available and reserved; deployed `heading-normalizer.koplugin` may be deleted (no archive required).
+
+1. Read-only corpus audit (49 EPUBs in `meaning-and-meditation`) via one research subagent, using the real Lua classifier; outputs in `local/corpus-audit/`, reusable scripts in `tools/`.
+2. Unit A rename → Book Theme (plugin dir, menu, docs, harness, settings/cache migration with fallback).
+3. Unit B theme model + deterministic CSS + theme-hash cache.
+4. Unit C theme UI, body write-through, "Prepare KOReader settings".
+5. Unit D detection tuning from the audit, quote/epigraph role, `p.other` fix, fixtures.
+6. Unit E device backup/deploy/acceptance; graceful KOReader exit; record observations.
+7. Default theme comes from the owner's current user tweak: body **EB Garamond**, headings **Alegreya Sans** (both installed on device); `cre_font` already "EB Garamond", `copt_font_base_weight` is currently 1 (Prepare action should set 0).
+
+Session decisions (durable):
+
+- Engine modules keep the `hn_*` names (allowed by the contract) to avoid churn; the plugin directory, product strings, settings keys and device paths become `book-theme`.
+- New settings: global `book_theme_enabled`, theme table `book_theme_settings`; per-book `book_theme` cache (version + theme hash), `book_theme_disabled`. Old `heading_normalizer*` keys are read as a fallback and never destroyed.
+- Role scale: body = EB Garamond normal; Part/Chapter/Section/Minor = Alegreya Sans bold at 1.45/1.3/1.15/0.95 rem; Minor uppercase; quotes = EB Garamond italic. Real `h1`∈Part … `h4`–`h6`∈Minor; detected levels map the same way.
+- Theme hash: pure-Lua deterministic hash (FNV-1a over canonical serialisation), included in the per-book cache key; no timestamps in CSS.
+- Watch out: `copt_font_base_weight` is 1 on the device; the Prepare action sets it to 0 and touches nothing else.
+
 ## Decisions
 
 - Book Theme owns body font family/weight, `p`/`li`/`blockquote` family and weight, quote/epigraph type, and all heading roles — real `h1`–`h6` as well as detected pseudo-headings.
