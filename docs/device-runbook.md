@@ -4,7 +4,9 @@
 
 The device is the owner's Boox. Identity and paths are in Git-ignored `local/device.json`; `tools/Device.ps1` verifies the serial and model before every operation. Do not target a device that fails that check.
 
-KOReader root: `/sdcard/koreader`. Plugin directory: `/sdcard/koreader/plugins/heading-normalizer.koplugin`. Setup backups: `/sdcard/Documents/BooxSetupBackup/`.
+KOReader root: `/sdcard/koreader`. Plugin directory: `/sdcard/koreader/plugins/book-theme.koplugin`. Setup backups: `/sdcard/Documents/BooxSetupBackup/`.
+
+The pre-rename install lived at `/sdcard/koreader/plugins/heading-normalizer.koplugin`. It must not stay active beside Book Theme — both would append a stylesheet. `Deploy` moves it to `/sdcard/Documents/BooxSetupBackup/heading-normalizer-legacy-<stamp>`; only one such archive is kept.
 
 ## Before deploying
 

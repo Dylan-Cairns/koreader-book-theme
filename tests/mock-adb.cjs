@@ -43,7 +43,7 @@ else if (args[0] === 'shell') {
     const [, src, dst] = command.match(/^mv '([^']+)' '([^']+)'$/) || [];
     if (!src || !dst) process.exit(2);
     // Simulated failure specifically exercises rollback after prior-plugin archival.
-    if (fs.existsSync(path.join(root, 'fail-activation')) && src.includes('heading-normalizer.stage-')) process.exit(1);
+    if (fs.existsSync(path.join(root, 'fail-activation')) && src.includes('book-theme.stage-')) process.exit(1);
     mkdirFor(remote(dst)); fs.renameSync(remote(src), remote(dst));
   } else if (command.startsWith('screencap -p ')) {
     if (fs.existsSync(path.join(root, 'fail-capture'))) process.exit(1);

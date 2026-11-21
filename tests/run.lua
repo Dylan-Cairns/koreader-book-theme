@@ -2,8 +2,8 @@ package.path = table.concat({
     "local/toolchain/luaunit/?.lua",
     "local/toolchain/luacheck/src/?.lua",
     "local/toolchain/luacheck/src/?/init.lua",
-    "plugin/heading-normalizer.koplugin/?.lua",
-    "plugin/heading-normalizer.koplugin/?/init.lua",
+    "plugin/book-theme.koplugin/?.lua",
+    "plugin/book-theme.koplugin/?/init.lua",
     "tests/?.lua",
     package.path,
 }, ";")

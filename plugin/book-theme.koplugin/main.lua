@@ -12,8 +12,24 @@ local logger = require("logger")
 local _ = require("gettext")
 
 local Scan = require("hn_scan")
+local Settings = require("hn_settings")
 
+-- Cache format version. Kept at 1 so a cache written under the previous product
+-- name stays valid; the theme hash arrives with the theme model.
 local VERSION = 1
+
+-- Saves always write the current key. The legacy heading_normalizer* keys are
+-- read only as a fallback, so an existing device state survives the rename. A
+-- toggle that is turned off deletes both keys, otherwise the legacy value would
+-- switch the feature back on through the fallback.
+local KEY = {
+    enabled = "book_theme_enabled",
+    enabled_legacy = "heading_normalizer_enabled",
+    disabled = "book_theme_disabled",
+    disabled_legacy = "heading_normalizer_disabled",
+    cache = "book_theme",
+    cache_legacy = "heading_normalizer",
+}
 
 local ArchiveBook = {}
 ArchiveBook.__index = ArchiveBook
@@ -52,7 +68,7 @@ function ArchiveBook:read(path)
     if not entry then return nil end
     local content = self.archive:extractToMemory(entry.path)
     if not content and self.archive.err then
-        logger.warn("heading-normalizer: cannot read", entry.path, self.archive.err)
+        logger.warn("book-theme: cannot read", entry.path, self.archive.err)
     end
     return content
 end
@@ -61,11 +77,11 @@ function ArchiveBook:close()
     self.archive:close()
 end
 
-local HeadingNormalizer = WidgetContainer:extend{
-    name = "headingnormalizer",
+local BookTheme = WidgetContainer:extend{
+    name = "booktheme",
 }
 
-function HeadingNormalizer:init()
+function BookTheme:init()
     self.generated_css = nil
     self.report = nil
     -- The same plugin is instantiated by the file manager, where there is no
@@ -81,9 +97,9 @@ end
 -- ReaderTypeset rebuilds the stylesheet on every ApplyStyleSheet. Appending
 -- here means the generated CSS survives later style changes instead of being
 -- silently dropped the next time the user edits a tweak.
-function HeadingNormalizer:installCssHook()
+function BookTheme:installCssHook()
     local styletweak = self.ui.styletweak
-    if not styletweak or styletweak._heading_normalizer_hooked then return end
+    if not styletweak or styletweak._book_theme_hooked then return end
     local original = styletweak.getCssText
     local plugin = self
     styletweak.getCssText = function(instance)
@@ -93,23 +109,27 @@ function HeadingNormalizer:installCssHook()
         if not css or css == "" then return extra end
         return css .. "\n" .. extra
     end
-    styletweak._heading_normalizer_hooked = true
+    styletweak._book_theme_hooked = true
 end
 
-function HeadingNormalizer:isEnabled()
-    return G_reader_settings:isTrue("heading_normalizer_enabled")
+function BookTheme:isEnabled()
+    return Settings.read_true(G_reader_settings, KEY.enabled, KEY.enabled_legacy)
 end
 
-function HeadingNormalizer:isBookDisabled()
-    return self.ui.doc_settings and self.ui.doc_settings:isTrue("heading_normalizer_disabled")
+function BookTheme:isBookDisabled()
+    return Settings.read_true(self.ui.doc_settings, KEY.disabled, KEY.disabled_legacy)
 end
 
-function HeadingNormalizer:isEpub()
+function BookTheme:readCache()
+    return Settings.read(self.ui.doc_settings, KEY.cache, KEY.cache_legacy)
+end
+
+function BookTheme:isEpub()
     local format = self.ui.document and self.ui.document:getDocumentFormat() or ""
     return format:lower():find("epub", 1, true) ~= nil
 end
 
-function HeadingNormalizer:scanNow()
+function BookTheme:scanNow()
     local path = self.ui.document and self.ui.document.file
     if not path then return {error = "no document path"} end
     local book, err = ArchiveBook.new(path)
@@ -151,7 +171,7 @@ local function report_for_storage(result)
     return report
 end
 
-function HeadingNormalizer:applyCss()
+function BookTheme:applyCss()
     local document = self.ui.document
     local typeset = self.ui.typeset
     local styletweak = self.ui.styletweak
@@ -160,22 +180,22 @@ function HeadingNormalizer:applyCss()
         styletweak:getCssText() or "")
 end
 
-function HeadingNormalizer:onPreRenderDocument(doc_settings)
+function BookTheme:onPreRenderDocument(doc_settings)
     self.ui.doc_settings = doc_settings or self.ui.doc_settings
     local ok, err = pcall(function() self:prepareForRender() end)
     if not ok then
-        logger.err("heading-normalizer: " .. tostring(err))
+        logger.err("book-theme: " .. tostring(err))
         self.generated_css = nil
     end
 end
 
-function HeadingNormalizer:prepareForRender()
+function BookTheme:prepareForRender()
     if not self:isEnabled() or self:isBookDisabled() or not self:isEpub() then
         self.generated_css = nil
         return
     end
 
-    local cached = self.ui.doc_settings:readSetting("heading_normalizer")
+    local cached = self:readCache()
     if cached and cached.version == VERSION and cached.css ~= nil then
         self.generated_css = cached.css ~= "" and cached.css or nil
         self.report = cached.report
@@ -183,13 +203,13 @@ function HeadingNormalizer:prepareForRender()
         local result = self:scanNow()
         self.report = report_for_storage(result)
         self.generated_css = result and result.css or nil
-        self.ui.doc_settings:saveSetting("heading_normalizer", {
+        self.ui.doc_settings:saveSetting(KEY.cache, {
             version = VERSION,
             css = self.generated_css or "",
             report = self.report,
             scanned_at = os.time(),
         })
-        logger.info("heading-normalizer: scanned",
+        logger.info("book-theme: scanned",
             self.ui.document.file,
             self.report and self.report.stats and self.report.stats.pseudo_headings or 0)
     end
@@ -199,13 +219,13 @@ function HeadingNormalizer:prepareForRender()
     end
 end
 
-function HeadingNormalizer:currentReport()
+function BookTheme:currentReport()
     if self.report then return self.report end
-    local cached = self.ui.doc_settings and self.ui.doc_settings:readSetting("heading_normalizer")
+    local cached = self:readCache()
     return cached and cached.report or nil
 end
 
-function HeadingNormalizer:formatReport()
+function BookTheme:formatReport()
     local report = self:currentReport()
     if not report then return _("No scan has run for this book yet.") end
     local lines = {}
@@ -231,14 +251,14 @@ function HeadingNormalizer:formatReport()
     return table.concat(lines, "\n")
 end
 
-function HeadingNormalizer:currentCss()
+function BookTheme:currentCss()
     if self.generated_css and self.generated_css ~= "" then return self.generated_css end
-    local cached = self.ui.doc_settings and self.ui.doc_settings:readSetting("heading_normalizer")
+    local cached = self:readCache()
     if cached and cached.css and cached.css ~= "" then return cached.css end
     return nil
 end
 
-function HeadingNormalizer:showReport(title, text)
+function BookTheme:showReport(title, text)
     if not text or text == "" then
         UIManager:show(InfoMessage:new{text = _("Nothing to show.")})
         return
@@ -249,13 +269,14 @@ function HeadingNormalizer:showReport(title, text)
     })
 end
 
-function HeadingNormalizer:addToMainMenu(menu_items)
+function BookTheme:addToMainMenu(menu_items)
     if not (self.ui and self.ui.document) then return end
     local function toggleGlobal()
-        if G_reader_settings:isTrue("heading_normalizer_enabled") then
-            G_reader_settings:delSetting("heading_normalizer_enabled")
+        if self:isEnabled() then
+            G_reader_settings:delSetting(KEY.enabled)
+            G_reader_settings:delSetting(KEY.enabled_legacy)
         else
-            G_reader_settings:saveSetting("heading_normalizer_enabled", true)
+            G_reader_settings:saveSetting(KEY.enabled, true)
         end
         self.generated_css = nil
         UIManager:show(InfoMessage:new{
@@ -265,10 +286,11 @@ function HeadingNormalizer:addToMainMenu(menu_items)
 
     local function toggleBook()
         local settings = self.ui.doc_settings
-        if settings:isTrue("heading_normalizer_disabled") then
-            settings:delSetting("heading_normalizer_disabled")
+        if self:isBookDisabled() then
+            settings:delSetting(KEY.disabled)
+            settings:delSetting(KEY.disabled_legacy)
         else
-            settings:saveSetting("heading_normalizer_disabled", true)
+            settings:saveSetting(KEY.disabled, true)
         end
         self.generated_css = nil
         UIManager:show(InfoMessage:new{
@@ -276,8 +298,8 @@ function HeadingNormalizer:addToMainMenu(menu_items)
         })
     end
 
-    menu_items.heading_normalizer = {
-        text = _("Heading normaliser"),
+    menu_items.book_theme = {
+        text = _("Book Theme"),
         sorting_hint = "tools",
         sub_item_table = {
             {
@@ -293,7 +315,7 @@ function HeadingNormalizer:addToMainMenu(menu_items)
             {
                 text = _("Status and detected headings"),
                 callback = function()
-                    self:showReport(_("Heading normaliser"), self:formatReport())
+                    self:showReport(_("Book Theme"), self:formatReport())
                 end,
             },
             {
@@ -319,7 +341,9 @@ function HeadingNormalizer:addToMainMenu(menu_items)
             {
                 text = _("Re-scan this book on next open"),
                 callback = function()
-                    self.ui.doc_settings:delSetting("heading_normalizer")
+                    -- Drop the legacy cache too, or the fallback would serve it again.
+                    self.ui.doc_settings:delSetting(KEY.cache)
+                    self.ui.doc_settings:delSetting(KEY.cache_legacy)
                     self.generated_css = nil
                     UIManager:show(InfoMessage:new{
                         text = _("The next opening of this book will scan it again."),
@@ -330,4 +354,4 @@ function HeadingNormalizer:addToMainMenu(menu_items)
     }
 end
 
-return HeadingNormalizer
+return BookTheme

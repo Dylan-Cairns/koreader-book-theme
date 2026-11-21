@@ -1,6 +1,6 @@
 # Design
 
-> **Milestone-1 note.** This document describes the original heading-normaliser design. The product contract has since become **Book Theme**: the theme owns body font family/weight and all document type, real headings are themed too, and KOReader keeps the reading environment. Where this document conflicts, `NEXT_AGENT.md` and `STATUS.md` win. The no-rewrite and `PreRenderDocument` timing decisions still stand.
+> **Milestone-1 note.** This document describes the original heading-normaliser design, now shipped as **Book Theme**. The product contract extends it: the theme owns body font family/weight and all document type, real headings are themed too, and KOReader keeps the reading environment. Where this document conflicts, `NEXT_AGENT.md` and `STATUS.md` win. The no-rewrite and `PreRenderDocument` timing decisions still stand. The engine modules keep their `hn_*` filenames as a legacy namespace; the plugin directory, menu and settings keys are Book Theme.
 
 ## The problem
 
@@ -84,7 +84,7 @@ Levels use `rem`, which crengine resolves against KOReader's font size, so headi
 The generated CSS and a compact report live in the book's sidecar:
 
 ```lua
-heading_normalizer = {
+book_theme = {
     version = 1,
     css = "...",          -- "" means "scanned, nothing to do"
     report = { ... },
@@ -93,6 +93,8 @@ heading_normalizer = {
 ```
 
 A version bump invalidates the cache. Re-scan deletes the setting; the next open rebuilds it.
+
+The rename to Book Theme keeps the cache version at 1: a `heading_normalizer` cache written by the old plugin is still valid and is read through a fallback, so upgrading does not rescan every book. Saves always write `book_theme`, and the legacy key is left untouched.
 
 ## Failure containment
 

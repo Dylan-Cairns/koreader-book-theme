@@ -1,8 +1,6 @@
 # Book Theme
 
-> **Rename in progress.** The repository is now `koreader-book-theme`. The plugin directory, menu text and settings keys are still `heading-normalizer`; see work unit A in `NEXT_AGENT.md`.
-
-A KOReader plugin that finds chapter headings which are not real `<h1>`–`<h6>` elements — the `<p class="calibre7">Chapter One</p>` kind — and gives them the same typography as the rest of your library. The Book Theme milestone extends it into one house style for body text, headings and quotes.
+A KOReader plugin that gives a book one house style: body text, quotes, and chapter headings — including the ones that are not real `<h1>`–`<h6>` elements, the `<p class="calibre7">Chapter One</p>` kind. The detection engine is inherited from the earlier Heading Normaliser plugin; it is now the `hn_*` engine namespace inside Book Theme.
 
 It does **not** rewrite the book. It generates a small per-book stylesheet, injects it through KOReader's style-tweak pipeline before the first render, and caches the result in the book's sidecar. Progress, highlights, bookmarks and reading settings stay attached to the original file.
 
@@ -22,9 +20,11 @@ Negative filters reject navigation, footnotes, tables, figures, captions, drop c
 
 ## Install
 
-Copy `plugin/heading-normalizer.koplugin` to `koreader/plugins/`, restart KOReader, then open a book and enable it under **Document → Heading normaliser → Enable for all books**.
+Copy `plugin/book-theme.koplugin` to `koreader/plugins/`, restart KOReader, then open a book and enable it under **Tools → Book Theme → Enable for all books**.
 
 It is off by default. The first open of each book scans it once; later opens use the cached stylesheet.
+
+Upgrading from Heading Normaliser: deploy with `tools/Device.ps1 Deploy`, which archives the old `heading-normalizer.koplugin` outside the plugin directory, or delete that folder yourself. The old `heading_normalizer*` settings and per-book caches are read as a fallback, so the enabled state and already-scanned books carry over; saves always write the new `book_theme*` keys, and the old values are left in place.
 
 ## Menu
 

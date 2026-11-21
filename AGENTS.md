@@ -1,6 +1,6 @@
 # Agent instructions
 
-This repository (`koreader-book-theme`) is the independent **Book Theme** plugin for KOReader. It is not part of `koreader-vault-reader` and must not modify that project. The product was renamed from “Heading Normaliser” on 2026-11-21: the repository directory changed, while the plugin directory, menu text and `heading_normalizer*` settings keys keep their old names until work unit A of `NEXT_AGENT.md`.
+This repository (`koreader-book-theme`) is the independent **Book Theme** plugin for KOReader. It is not part of `koreader-vault-reader` and must not modify that project. The product was renamed from “Heading Normaliser” on 2026-11-21: the plugin directory is `plugin/book-theme.koplugin`, the menu entry is **Book Theme**, and settings are stored under `book_theme*` keys. The pure detection engine keeps its `hn_*` module names and is read-only presentation code; `heading_normalizer*` keys are legacy, read as a fallback and never deleted.
 
 Read `STATUS.md`, `NEXT_AGENT.md`, `docs/harness.md` and `docs/design.md` at session start. Run `tools/Test.ps1` for offline checks; `tools/Device.ps1 Status` checks hardware state read-only. Update `STATUS.md` after milestones, deployments or device-state changes, including the exact tests run and the remaining work.
 

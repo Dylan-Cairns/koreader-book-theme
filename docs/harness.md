@@ -31,8 +31,9 @@ The plugin's parser, classifier and generator are pure Lua, so most coverage is 
 ## Layout
 
 ```
-plugin/heading-normalizer.koplugin/
-  main.lua            KOReader adapter: hooks, menu, archive reader
+plugin/book-theme.koplugin/
+  main.lua            KOReader adapter: hooks, menu, archive reader, settings keys
+  hn_settings.lua     read-through fallback from book_theme* to legacy keys
   hn_util.lua         paths, attributes, entities
   hn_html.lua         tolerant HTML scanner
   hn_css.lua          simple-selector CSS parser and computed styles
@@ -43,6 +44,8 @@ plugin/heading-normalizer.koplugin/
 tests/unit/           LuaUnit suites, one per pure module
 tests/helpers.lua     in-memory archive reader and fixture helpers
 ```
+
+The `hn_*` prefix is the legacy engine namespace carried over from Heading Normaliser; the filenames and module names are deliberately unchanged, and only the plugin directory, menu, settings keys and device paths use the Book Theme name.
 
 ## Device commands
 
@@ -57,7 +60,7 @@ Device identity is in ignored `local/device.json`; serial and model are verified
 .\tools\Device.ps1 Restore -Backup C:\path\to\harness-backup
 ```
 
-Deploy requires `main.lua` and `_meta.lua`, stops KOReader, backs up settings and this plugin, stages the replacement, archives the prior plugin, and attempts rollback if activation fails. Restore replaces only this plugin; it does not overwrite settings or book sidecars. Remote replacement is restricted to `/sdcard/koreader/plugins/heading-normalizer.koplugin`.
+Deploy requires `main.lua` and `_meta.lua`, stops KOReader, backs up settings and this plugin (plus a pre-rename `heading-normalizer.koplugin` if one is still installed), stages the replacement at `/sdcard/koreader/plugins/book-theme.koplugin`, archives the prior plugin, and attempts rollback if activation fails. A surviving legacy plugin directory is moved to `/sdcard/Documents/BooxSetupBackup/heading-normalizer-legacy-<stamp>` so the two never load together. Restore replaces only this plugin; it does not overwrite settings or book sidecars. Backups carry the manifest kind `book-theme-device-backup-v1`, and a `heading-normalizer-device-backup-v1` manifest from before the rename still restores, with its plugin folder installed at the Book Theme path. Remote replacement is restricted to `/sdcard/koreader/plugins/book-theme.koplugin`.
 
 Capture writes a binary-safe PNG under `local/captures/` and removes its device-side temporaries. Empty or non-PNG images fail explicitly.
 
