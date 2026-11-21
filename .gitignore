@@ -1,0 +1,8 @@
+/local/
+/build/
+/dist/
+/tmp/
+/.venv/
+/node_modules/
+__pycache__/
+*.pyc

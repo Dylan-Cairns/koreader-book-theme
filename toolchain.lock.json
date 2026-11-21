@@ -1,0 +1,23 @@
+{
+  "koreader": {
+    "url": "https://github.com/koreader/koreader.git",
+    "tag": "v2026.07.1",
+    "commit": "9192014d8bd82a91dc1012473be0f238dedfdb54",
+    "baseCommit": "6e4bc81af4e04f78d81677a323a780a71b29702a"
+  },
+  "luajit": {
+    "url": "https://github.com/LuaJIT/LuaJIT.git",
+    "commit": "3c4f9fe2052b8d08a917ac0d5f38563f0297b5a3",
+    "patch": "base/thirdparty/luajit/koreader-luajit-enable-table_pack.patch"
+  },
+  "luacheck": {
+    "url": "https://github.com/lunarmodules/luacheck.git",
+    "commit": "cc089e3f65acdd1ef8716cc73a3eca24a6b845e4",
+    "version": "1.2.0"
+  },
+  "luaunit": {
+    "url": "https://github.com/bluebird75/luaunit.git",
+    "commit": "9678c933e71cb26adcdfa6cf1baceb926398eb48",
+    "version": "3.5"
+  }
+}
