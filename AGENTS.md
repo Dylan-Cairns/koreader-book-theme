@@ -2,7 +2,7 @@
 
 This repository is the independent **KOReader Heading Normaliser** plugin. It is not part of `koreader-vault-reader` and must not modify that project.
 
-Read `STATUS.md`, `docs/harness.md` and `docs/design.md` at session start. Run `tools/Test.ps1` for offline checks; `tools/Device.ps1 Status` checks hardware state read-only. Update `STATUS.md` after milestones, deployments or device-state changes, including the exact tests run and the remaining work.
+Read `STATUS.md`, `NEXT_AGENT.md`, `docs/harness.md` and `docs/design.md` at session start. Run `tools/Test.ps1` for offline checks; `tools/Device.ps1 Status` checks hardware state read-only. Update `STATUS.md` after milestones, deployments or device-state changes, including the exact tests run and the remaining work.
 
 ## Product rule
 
@@ -31,5 +31,5 @@ Do not add a cached or destructive EPUB rewriter as the default path. A future o
 - Every detection change needs a positive and a negative fixture test. A false positive that restyles body text is worse than a missed pseudo-heading.
 - Keep generated CSS deterministic: sorted selectors, no timestamps, no random ordering. Unstable CSS invalidates the rendering cache on every open.
 - Use `python -B` if Python is needed; keep generated outputs ignored.
-- Do not delegate unless the user asks. Do not publish, push, or message anyone without instruction.
+- The owner has authorized subagents for this project (2026-11-21). Read `NEXT_AGENT.md` at session start and use subagents for corpus research and sequential implementation. Do not publish, push, or message anyone without instruction.
 - Distinguish observed behaviour, hypotheses and untested plans. Never claim a device test happened without doing it.

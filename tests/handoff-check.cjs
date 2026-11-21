@@ -29,7 +29,8 @@ const configText = fs.readFileSync(path.join(root, 'opencode.jsonc'), 'utf8');
 const config = JSON.parse(configText.replace(/^\s*\/\/.*$/gm, ''));
 assert(!('model' in config) && !('small_model' in config) && !('providers' in config),
   'Model/provider must remain session-selected');
-assert(config.compaction.auto);
+// Compaction is configured globally so every project inherits the same budget.
+assert(!('compaction' in config), 'Compaction must stay global, not project-level');
 assert(config.instructions.includes('docs/harness.md'));
 assert.equal(config.share, 'disabled');
 

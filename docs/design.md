@@ -1,5 +1,7 @@
 # Design
 
+> **Milestone-1 note.** This document describes the original heading-normaliser design. The product contract has since become **Book Theme**: the theme owns body font family/weight and all document type, real headings are themed too, and KOReader keeps the reading environment. Where this document conflicts, `NEXT_AGENT.md` and `STATUS.md` win. The no-rewrite and `PreRenderDocument` timing decisions still stand.
+
 ## The problem
 
 Publishers mark chapter titles in wildly different ways. Some use `<h1>`–`<h6>`; many Calibre conversions use `<p class="calibre7">`, `<div class="chapter-title">`, or a bold paragraph inside a wrapper. KOReader's global typography settings only reach real heading tags, so those books ignore it.

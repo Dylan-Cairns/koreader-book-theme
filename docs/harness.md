@@ -67,6 +67,12 @@ FreeKiosk is owner-managed outside this project. Do not re-enable it, change Dev
 
 Do not run raw `uiautomator dump` or `screencap` into `/sdcard`; use `Device.ps1 Capture`.
 
+## Session budget and delegation
+
+Global OpenCode config (applies to every project) sets automatic compaction to keep a 40K tail with an 80% buffer, so a 1M-context model compacts around 200K rather than near its advertised ceiling. DeepSeek's reliable working range is roughly 128K–200K; compaction earlier than the window is deliberate.
+
+Subagents are enabled globally and the project-level denial has been removed. This project authorises delegation: use one read-only corpus research subagent first, then implementation subagents strictly sequentially. `NEXT_AGENT.md` is the orchestration contract.
+
 ## Working state
 
 Maintain `STATUS.md` after milestones, deployment or device-state changes: current work, decisions, exact tests run, deployed version, device state and next action. Keep credentials and raw logs under `local/`. `local/captures/`, `local/logs/` and `local/backups/` are disposable evidence and are pruned by `Device.ps1`.

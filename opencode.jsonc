@@ -5,16 +5,9 @@
   "snapshots": true,
   "share": "disabled",
   "instructions": ["docs/harness.md"],
-  // Keep a large verbatim recent tail; STATUS.md is the recovery point.
-  "compaction": {
-    "auto": true,
-    "keep": { "tokens": 40000 },
-    "buffer": "20%"
-  },
   "watcher": { "ignore": ["local/**", "build/**", "dist/**", "tmp/**"] },
   "permissions": [
     { "action": "*", "resource": "*", "effect": "allow" },
-    { "action": "subagent", "resource": "*", "effect": "deny" },
     { "action": "shell", "resource": "git push *", "effect": "deny" }
   ]
 }

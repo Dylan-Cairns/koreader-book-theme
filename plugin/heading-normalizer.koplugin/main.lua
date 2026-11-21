@@ -68,8 +68,14 @@ local HeadingNormalizer = WidgetContainer:extend{
 function HeadingNormalizer:init()
     self.generated_css = nil
     self.report = nil
-    self.ui.menu:registerToMainMenu(self)
-    self:installCssHook()
+    -- The same plugin is instantiated by the file manager, where there is no
+    -- document or style-tweak pipeline. Only the reader gets a menu entry.
+    if self.ui and self.ui.document and self.ui.menu then
+        self.ui.menu:registerToMainMenu(self)
+    end
+    if self.ui and self.ui.styletweak then
+        self:installCssHook()
+    end
 end
 
 -- ReaderTypeset rebuilds the stylesheet on every ApplyStyleSheet. Appending
@@ -244,6 +250,7 @@ function HeadingNormalizer:showReport(title, text)
 end
 
 function HeadingNormalizer:addToMainMenu(menu_items)
+    if not (self.ui and self.ui.document) then return end
     local function toggleGlobal()
         if G_reader_settings:isTrue("heading_normalizer_enabled") then
             G_reader_settings:delSetting("heading_normalizer_enabled")
@@ -271,6 +278,7 @@ function HeadingNormalizer:addToMainMenu(menu_items)
 
     menu_items.heading_normalizer = {
         text = _("Heading normaliser"),
+        sorting_hint = "tools",
         sub_item_table = {
             {
                 text = _("Enable for all books"),

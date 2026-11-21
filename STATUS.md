@@ -2,34 +2,47 @@
 
 ## Current work
 
-Milestone 1 of the Heading Normaliser plugin: ToC-driven detection, EPUB semantic fallback, conservative layout heuristics, deterministic CSS generation, per-book cache and menu.
+Milestone 1 heading-normaliser engine is committed and verified offline. The product is pivoting to **Book Theme**: a role-based document typography plugin that owns body and heading type, detects pseudo-headings, and leaves the reading environment to KOReader.
+
+The next session must read `NEXT_AGENT.md` and execute its orchestration protocol. That file is the authoritative product contract where it supersedes the milestone-1 design.
 
 ## Decisions
 
-- The plugin does **not** rewrite EPUBs. KOReader sidecars are keyed by the file's partial MD5, so a rewritten file loses progress/highlights/bookmarks. Presentation is changed through a generated stylesheet instead.
-- Generated CSS is injected by wrapping `ReaderStyleTweak:getCssText` and applying at `PreRenderDocument`, before the first render. Applying after render can trigger `ReaderRolling`'s reload machinery.
-- Detection is ToC-first. Layout heuristics require multiple signals and are heavily filtered. A missed heading is preferable to restyling body text.
-- `-cr-hint: toc-levelN` is emitted so pseudo-headings work in KOReader's alternative ToC.
-- The plugin is off by default; enabling takes effect on the next open.
-- Layout candidates require at least two signals, a score of 38, and at least one of: a semantic class/name hint, font size >= 1.12x body, or a page break. This keeps bold first paragraphs and similar body-text patterns out.
+- Book Theme owns body font family/weight, `p`/`li`/`blockquote` family and weight, quote/epigraph type, and all heading roles — real `h1`–`h6` as well as detected pseudo-headings.
+- KOReader owns base font size, line spacing, margins, contrast/gamma, hyphenation and UI chrome.
+- The theme is authoritative for body type but writes the body face through to KOReader's font setting so the Aa menu agrees. KOReader Font Weight must be 0; the theme owns weight.
+- Body size normalisation is out of v1; forcing `1rem` on every `p` would enlarge footnotes and small print.
+- No EPUB rewriting. The plugin changes presentation only, preserving sidecars, progress, highlights and bookmarks.
+- Per-book CSS cache must include a theme hash, so changing a theme font invalidates that book's cached CSS on the next open.
+- The auto-compaction buffer is global at 80% of the model window with a 40K retained tail; subagents are enabled globally.
 
 ## Tests run
 
-Run on 2026-11-20 in this repository:
+Run on 2026-11-20/21 in this repository:
 
-- `.\tools\Setup-Toolchain.ps1` — pinned KOReader v2026.07.1 checkout and base submodule verified; LuaJIT 2.1.1783773675 ready.
-- `.\tools\Test.ps1` — Luacheck: 20 files, 0 warnings, 0 errors. LuaUnit: 36 tests, 36 successes. Handoff checks: 44 project files, local exclusions, doc links and model-free config passed. Mock device checks: identity, deploy/backup/rollback (existing and first install), activation recovery, settings preservation, successful/failed/empty captures passed. No physical device operations.
-- `local/toolchain/LuaJIT/src/luajit.exe` preview scan of a synthetic Calibre-style chapter confirmed `p.calibre7` level 2 from the ToC, `p.section-title` level 3 from layout, and rejection of a bold first paragraph and an epigraph.
+- `.\tools\Setup-Toolchain.ps1` — pinned KOReader v2026.07.1 source plus base verified; LuaJIT 2.1.1783773675 ready.
+- `.\tools\Test.ps1` — Luacheck: 20 files, 0 warnings, 0 errors. LuaUnit: 36 tests, 36 successes. Handoff checks passed. Mock device checks passed: identity, deploy/backup/rollback, activation recovery, settings preservation, capture handling. No physical device operations in the mock test.
+- Device (Go6, KOReader v2026.07.2, same commit as v2026.07.1): deployed `heading-normalizer.koplugin`, enabled for all books, menu under Tools. Real-book scan of *Rethinking meditation.epub*: 26 documents, 1 stylesheet, 88 ToC entries, 2 pseudo-headings (`p.bibliography` 100, `p.other` 39). Generated CSS viewed on-device.
+- Device acceptance is **not** complete. Clean-EPUB behavior, pseudo-heading visual effect, progress/highlight preservation, per-book disable and restart persistence still need explicit checks.
 
-Not run: real-device deploy, Android rendering, acceptance cases. Those are historical/untested until performed.
+## Device notes
+
+- On 2026-11-21 the cleaned build (diagnostic markers removed, file-manager guard added) was redeployed to `/sdcard/koreader/plugins/heading-normalizer.koplugin` and the debug file removed. The Tools → Heading normaliser entry still attaches; no debug file was recreated. The plugin setting remained enabled.
+- Settings flush on graceful exit. `am force-stop` after toggling a setting loses it.
+- `sorting_hint = "tools"` works; nesting under `document_settings` did not attach.
+- The plugin is also instantiated by the file manager; guard `init` and `addToMainMenu` on `self.ui.document`.
+- `p.other` may be a false positive; the corpus audit must check it.
+- Plugin path currently `/sdcard/koreader/plugins/heading-normalizer.koplugin`. Book Theme rename must update the device harness and backup prefixes.
 
 ## Next action
 
-Deploy to the Boox with `tools/Device.ps1 Deploy`, then execute `docs/acceptance.md` cases 1–3 and record exact observations. After that, validate against two or three real books from the owner's library (one clean EPUB, one Calibre pseudo-heading book, one div-wrapped/no-ToC book).
+Start a new session in this repository (the global compaction and subagent settings are active) and run `/orchestrate`, or say: “Read `NEXT_AGENT.md` and execute it.” The first step is the read-only EPUB corpus audit; implementation follows sequentially.
 
 ## Open work
 
-- Device verification and screenshots.
-- Real-book classifier tuning, especially books whose titles are split across inline spans.
-- Optional settings for heading font and scale (currently hardcoded to match the companion stylesheet).
-- Optional opt-in EPUB exporter with sidecar migration; not part of the default path.
+- Rename product/plugin/menu to Book Theme.
+- Theme model, CSS generator, theme-hash cache.
+- Role-based font UI, body write-through, KOReader weight preparation.
+- Corpus-driven detection tuning and quote role.
+- Device acceptance.
+- Optional later: body-size normalisation, per-book overrides, EPUB exporter (owner approval required).
