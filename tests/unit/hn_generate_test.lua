@@ -188,19 +188,21 @@ end
 
 function TestGenerate:testNoMarkerRuleWithoutMarkers()
     local css = generate({})
-    luaunit.assertNotStrContains(css, "display: block !important;")
+    luaunit.assertNotStrContains(css, "margin-right: 0.35em")
 end
 
-function TestGenerate:testHeadingMarkerGetsItsOwnLine()
+function TestGenerate:testHeadingMarkerGetsASpaceOnTheTitleLine()
     local css = generate({}, nil, {markers = {"h1 .chapter-number"}})
     local marker = block(css, "h1 .chapter-number")
     luaunit.assertNotNil(marker)
-    luaunit.assertStrContains(marker, "display: block !important;")
-    luaunit.assertStrContains(marker, "font-size: 0.75em !important;")
-    luaunit.assertStrContains(marker, "letter-spacing: 0.1em !important;")
-    luaunit.assertStrContains(marker, "margin: 0 0 0.3em 0 !important;")
-    -- The heading itself keeps the theme type.
-    luaunit.assertNotStrContains(marker, "font-family:")
+    -- Same line, same face, same size: only a gap separates the number.
+    luaunit.assertStrContains(marker, "display: inline-block !important;")
+    luaunit.assertStrContains(marker, "margin-right: 0.35em !important;")
+    luaunit.assertStrContains(marker, "font-family: inherit !important;")
+    luaunit.assertNotStrContains(marker, "display: block")
+    luaunit.assertNotStrContains(marker, "font-size:")
+    luaunit.assertNotStrContains(marker, "letter-spacing:")
+    luaunit.assertNotStrContains(marker, "margin: ")
 end
 
 function TestGenerate:testMarkersAreSortedAndDeduplicated()

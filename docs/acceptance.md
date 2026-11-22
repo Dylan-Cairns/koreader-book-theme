@@ -19,7 +19,7 @@ Open an EPUB whose ToC points at `<p class="calibre…">` chapter titles.
 - Chapter openings use the sans heading stack and the level sizes.
 - Body text remains EB Garamond / the configured body font.
 - Chapter titles no longer inherit weird publisher sizes, centring or indentation.
-- A chapter number that the publisher separates only through its own stylesheet (`<h1><span class="chapter-number">19</span>Philosophy</h1>`, with no whitespace in the markup) sits on its own line at a smaller size, not welded to the title. Page numbers and footnote markers in the same book stay inline.
+- A chapter number that the publisher separates only through its own stylesheet (`<h1><span class="chapter-number">19</span>Philosophy</h1>`, with no whitespace in the markup) stays on the title line in the heading's own face, separated by a word space — not welded to the title and not on a line above it. Page numbers and footnote markers in the same book stay inline and unchanged.
 - **Status** lists the selectors and the ToC reason.
 
 ## 3. No-ToC book falls back to layout

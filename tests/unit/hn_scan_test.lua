@@ -154,7 +154,7 @@ function TestScan:testMalformedHtmlDoesNotThrow()
     luaunit.assertNil(result.error)
 end
 
-function TestScan:testGluedChapterNumberGetsItsOwnLine()
+function TestScan:testGluedChapterNumberGetsASpace()
     local result = Scan.scan(book({
         ["OEBPS/chapter1.xhtml"] = [[
             <html><body><div id="ch1" class="chapter">
@@ -163,8 +163,10 @@ function TestScan:testGluedChapterNumberGetsItsOwnLine()
             </div></body></html>]],
     }), {})
     luaunit.assertNil(result.error)
-    luaunit.assertStrContains(result.css, "h1 .chapter-number {")
-    luaunit.assertStrContains(result.css, "display: block !important;")
+    luaunit.assertStrContains(result.css, "h1 .chapter-number {\n" ..
+        "    font-family: inherit !important;\n" ..
+        "    display: inline-block !important;\n" ..
+        "    margin-right: 0.35em !important;\n}")
     luaunit.assertEquals(result.stats.heading_markers, 1)
 end
 

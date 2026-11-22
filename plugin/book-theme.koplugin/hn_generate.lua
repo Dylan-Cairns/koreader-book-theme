@@ -177,16 +177,18 @@ function Generate.generate(candidates, options)
     end
 
     -- A leading chapter number that the publisher separates only through its
-    -- own stylesheet (".chapter-number { display: block }"). With publisher CSS
-    -- off the number is welded to the title, so give that one class a block
-    -- line. Scoped to the marker class; body text can never match.
+    -- own stylesheet. The markup has no whitespace ("<h1><span>19</span>Hist")
+    -- and publisher separation is usually a block line. A small inline gap
+    -- reads better in a reader and is what the owner asked for, so the number
+    -- stays on the title line, in the heading's own face: `font-family:
+    -- inherit` also overrides a user tweak that forces every span to the body
+    -- face. Scoped to the marker class; body text can never match.
     local markers = options.markers or {}
     if #markers > 0 then
         append_rule(lines, unique_sorted(markers), {
-            "    display: block !important;",
-            "    font-size: 0.75em !important;",
-            "    letter-spacing: 0.1em !important;",
-            "    margin: 0 0 0.3em 0 !important;",
+            "    font-family: inherit !important;",
+            "    display: inline-block !important;",
+            "    margin-right: 0.35em !important;",
         })
     end
 

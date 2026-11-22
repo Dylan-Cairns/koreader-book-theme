@@ -22,9 +22,10 @@ local Cache = require("hn_cache")
 -- the old product name (version 1) has no hash, so it is rescanned once.
 -- Version 3 changes detection (semantic kind gate, ToC shape check, quotes).
 -- Version 4 adds the glued chapter-number rules and sup/sub defaults, and the
--- theme settings shrink to two fonts, so every cached stylesheet is rebuilt
+-- theme settings shrink to two fonts. Version 5 turns the chapter-number rule
+-- from a block line into an inline gap, so every cached stylesheet is rebuilt
 -- once.
-local VERSION = 4
+local VERSION = 5
 
 -- Saves always write the current key. The legacy heading_normalizer* keys are
 -- read only as a fallback, so an existing device state survives the rename. A
