@@ -28,8 +28,9 @@ local Cache = require("hn_cache")
 -- title heading. Version 7 makes the pair rules repeat the full margin
 -- shorthand. Version 9 cancels a publisher's negative pull-up on the block
 -- after a chapter title (version 8 existed only as a spacing probe on the test
--- device and was never committed).
-local VERSION = 9
+-- device and was never committed). Version 10 centres every heading level and
+-- widens the size ladder to 1.75/1.50/1.25/1.00 rem.
+local VERSION = 10
 
 -- Saves always write the current key. The legacy heading_normalizer* keys are
 -- read only as a fallback, so an existing device state survives the rename. A

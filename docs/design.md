@@ -93,13 +93,13 @@ Per-document candidates are merged by selector. A selector may not restyle many 
 
 ## Theme
 
-Book Theme exposes exactly two choices: the body face and the heading face. The body face also types quotes and epigraphs; the heading face is shared by every heading role. Everything else is a fixed default in `Theme.defaults()` — part/chapter/section/minor at 1.45/1.30/1.15/0.95 rem, bold, part and chapter titles centred, section and minor headings left, uppercase minor headings with `0.05em` spacing, italic quotes, and fixed vertical metrics per role (part `2.8rem 0 1.8rem`, chapter `2.4rem 0 1.5rem`, section `1.9rem 0 0.8rem`, minor `1.5rem 0 0.5rem`). Real `h1`–`h6` and detected pseudo-headings share those roles, so a book with clean markup and a Calibre-converted book look the same.
+Book Theme exposes exactly two choices: the body face and the heading face. The body face also types quotes and epigraphs; the heading face is shared by every heading role. Everything else is a fixed default in `Theme.defaults()` — part/chapter/section/minor at 1.75/1.50/1.25/1.00 rem, bold, every heading level centred, uppercase minor headings with `0.05em` spacing, italic quotes, and fixed vertical metrics per role (part `2.8rem 0 1.8rem`, chapter `2.4rem 0 1.5rem`, section `1.9rem 0 0.8rem`, minor `1.5rem 0 0.5rem`). Real `h1`–`h6` and detected pseudo-headings share those roles, so a book with clean markup and a Calibre-converted book look the same.
 
-Centring part and chapter titles follows the trade convention rather than a personal preference: Standard Ebooks' own `core.css` sets `text-align: center` and `margin: 3em 0` on every `h1`–`h6`, and Draft2Digital's EPUB formatter also centres chapter headings. Section and minor headings stay at the left margin because they function as in-text subheads, where a centred line would break the reading flow. The space below a chapter or part title is deliberately larger than the space above it: on device, the earlier `0.65rem` bottom margin left the opening paragraph looking glued to the title.
+Centring every heading follows the trade convention rather than a personal preference: Standard Ebooks' own `core.css` sets `text-align: center` on every `h1`–`h6`, and Draft2Digital's EPUB formatter also centres chapter headings. The earlier build left section and minor headings at the left margin as in-text subheads, but on device a `<h3 class="sec1">` read as a bold body paragraph, and the owner asked for them centred too, so alignment is no longer a differentiator between levels. The sizes are: each level steps by a quarter rem, so chapter is 20% larger than section and section 25% larger than minor. The previous 1.45/1.30/1.15/0.95 ladder put only 13% between chapter and section and looked flat on device. The lowest level is deliberately body-sized (1.00 rem): uppercase, bold and `0.05em` tracking identify it as a run-in subhead without inflating it into a division. The space below a chapter or part title is deliberately larger than the space above it: on device, the earlier `0.65rem` bottom margin left the opening paragraph looking glued to the title.
 
 `Theme.load` reads the stored `{body_font, heading_font}` table. A settings table from a build before the simplification is still accepted: it keeps the body face and any heading face that differs from the default, and drops the derived sizes and weights. Families are validated (length, character set) before they reach CSS, and an invalid one falls back to its default with a logged problem, so a corrupt settings table can never inject CSS or stop a book from opening.
 
-`Theme.canonical` serialises the resolved theme into sorted `key=value;` lines and `Theme.hash` runs FNV-1a over it. The hash is the per-book cache key: changing either face invalidates that book's cached CSS on the next open. The default theme hash is `655593d8` since part and chapter titles became centred (2026-11-22); the previous default was `74cfd6d8`.
+`Theme.canonical` serialises the resolved theme into sorted `key=value;` lines and `Theme.hash` runs FNV-1a over it. The hash is the per-book cache key: changing either face invalidates that book's cached CSS on the next open. The default theme hash is `23cb147d` since every heading level became centred and the sizes widened (2026-11-22); the previous defaults were `655593d8` (part/chapter centred) and `74cfd6d8` (all left).
 
 ## Output
 
@@ -125,15 +125,15 @@ The generated CSS and a compact report live in the book's sidecar:
 
 ```lua
 book_theme = {
-    version = 9,
-    theme_hash = "655593d8",
+    version = 10,
+    theme_hash = "23cb147d",
     css = "...",
     report = { ... },
     scanned_at = 1234567890,
 }
 ```
 
-A cache is reused only when its version, `css` and theme hash match the current build. A mismatch triggers one lazy rescan on the next open. The Heading Normaliser cache (version 1, no hash) therefore rebuilds once per book. Version 4 added the chapter-marker rule; version 6 centred part and chapter titles, widened their spacing and added the number/title pair; version 9 added the pull-up cancellation. Changing either face changes the theme hash and rebuilds exactly the affected books.
+A cache is reused only when its version, `css` and theme hash match the current build. A mismatch triggers one lazy rescan on the next open. The Heading Normaliser cache (version 1, no hash) therefore rebuilds once per book. Version 4 added the chapter-marker rule; version 6 centred part and chapter titles, widened their spacing and added the number/title pair; version 9 added the pull-up cancellation; version 10 centres every heading level and widens the size ladder. Changing either face changes the theme hash and rebuilds exactly the affected books.
 
 `css = ""` is a completed scan that produced no stylesheet (for example a skipped book); `css = nil` is not a completed scan. Re-scan deletes the setting; the next open rebuilds it. Saves always write `book_theme`; the legacy `heading_normalizer` key is read as a fallback and left untouched.
 

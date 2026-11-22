@@ -51,24 +51,28 @@ local ALIGNS = {left = true, center = true}
 Theme.DEFAULT_FONTS = {body = "EB Garamond", heading = "Alegreya Sans"}
 
 -- The resolved theme the generator consumes. `roles` is the whole typographic
--- spec: only `family` is ever changed by the UI. Part and chapter titles are
--- centred because that is the book convention (Standard Ebooks centres every
--- heading; a chapter opener that starts at the left margin reads as body text
--- on a small screen). Section and minor headings stay at the left margin,
--- where they function as in-text subheads.
+-- spec: only `family` is ever changed by the UI. Every heading level is
+-- centred: that is the book convention (Standard Ebooks centres every
+-- h1-h6, and the owner asked for it explicitly after seeing a left-aligned
+-- section head read as body text). The four sizes step by a quarter rem
+-- (1.75/1.50/1.25/1.00) so each level is visibly larger than the next; the
+-- previous 1.45/1.30/1.15/0.95 ladder was only a 13% step between chapter and
+-- section and looked flat on device. The lowest level is body-sized on
+-- purpose: uppercase, bold and tracking distinguish it, as a book's run-in
+-- subhead, without pretending to be a bigger division.
 function Theme.defaults()
     return {
         version = 1,
         body = {family = Theme.DEFAULT_FONTS.body, weight = "normal"},
         roles = {
-            part = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.45rem",
+            part = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.75rem",
                 case = "none", align = "center"},
-            chapter = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.30rem",
+            chapter = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.50rem",
                 case = "none", align = "center"},
-            section = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.15rem",
-                case = "none", align = "left"},
-            minor = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "0.95rem",
-                case = "upper", align = "left", spacing = "0.05em"},
+            section = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.25rem",
+                case = "none", align = "center"},
+            minor = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.00rem",
+                case = "upper", align = "center", spacing = "0.05em"},
             quote = {family = Theme.DEFAULT_FONTS.body, weight = "normal", style = "italic"},
         },
         toc_hints = true,

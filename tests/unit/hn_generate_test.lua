@@ -48,17 +48,17 @@ function TestGenerate:testRealHeadingsAlwaysThemed()
     luaunit.assertNotNil(h1)
     luaunit.assertStrContains(h1, 'font-family: "Alegreya Sans" !important;')
     luaunit.assertStrContains(h1, "font-weight: bold !important;")
-    luaunit.assertStrContains(h1, "font-size: 1.45rem !important;")
+    luaunit.assertStrContains(h1, "font-size: 1.75rem !important;")
     luaunit.assertStrContains(h1, "text-indent: 0 !important;")
     luaunit.assertStrContains(h1, "hyphens: none !important;")
     luaunit.assertStrContains(h1, "page-break-after: avoid !important;")
     luaunit.assertStrContains(h1, "text-transform: none !important;")
 
-    luaunit.assertStrContains(block(css, "h2"), "font-size: 1.30rem !important;")
-    luaunit.assertStrContains(block(css, "h3"), "font-size: 1.15rem !important;")
+    luaunit.assertStrContains(block(css, "h2"), "font-size: 1.50rem !important;")
+    luaunit.assertStrContains(block(css, "h3"), "font-size: 1.25rem !important;")
     local minor = block(css, "h4,\nh5,\nh6")
     luaunit.assertNotNil(minor)
-    luaunit.assertStrContains(minor, "font-size: 0.95rem !important;")
+    luaunit.assertStrContains(minor, "font-size: 1.00rem !important;")
     luaunit.assertStrContains(minor, "text-transform: uppercase !important;")
     luaunit.assertStrContains(minor, "letter-spacing: 0.05em !important;")
 
@@ -91,7 +91,7 @@ function TestGenerate:testPseudoHeadingsGetHintsAndSortedSelectors()
     luaunit.assertStrContains(css, "p.alpha,\np.zeta {")
     luaunit.assertStrContains(css, "p.alpha *")
     local pseudo = block(css, "p.alpha")
-    luaunit.assertStrContains(pseudo, "font-size: 1.30rem !important;")
+    luaunit.assertStrContains(pseudo, "font-size: 1.50rem !important;")
     luaunit.assertStrContains(pseudo, "-cr-hint: toc-level2;")
 end
 
@@ -246,16 +246,20 @@ function TestGenerate:testTitleFollowerLosesItsPullUp()
     luaunit.assertStrContains(css, "div.top,\np.first {\n    margin-top: 0 !important;\n}")
 end
 
-function TestGenerate:testChapterTitlesAreCentredAndHaveRoomBelow()
+function TestGenerate:testEveryHeadingLevelIsCentredAndSized()
     local theme = Theme.defaults()
     luaunit.assertEquals(theme.roles.chapter.align, "center")
     luaunit.assertEquals(theme.roles.part.align, "center")
-    -- Subheads stay at the margin so they read as part of the prose.
-    luaunit.assertEquals(theme.roles.section.align, "left")
+    -- The owner asked for section headings centred too, after a left-aligned
+    -- <h3 class="sec1"> read as body text on device (2026-11-22).
+    luaunit.assertEquals(theme.roles.section.align, "center")
+    luaunit.assertEquals(theme.roles.minor.align, "center")
     local css = generate({})
     local chapter = block(css, "h2")
     luaunit.assertStrContains(chapter, "text-align: center !important;")
     luaunit.assertStrContains(chapter, "margin: 2.4rem 0 1.5rem !important;")
+    luaunit.assertStrContains(block(css, "h3"), "text-align: center !important;")
+    luaunit.assertStrContains(block(css, "h4,\nh5,\nh6"), "text-align: center !important;")
 end
 
 function TestGenerate:testMarkerRuleAppliesOnlyToTheNamedClass()

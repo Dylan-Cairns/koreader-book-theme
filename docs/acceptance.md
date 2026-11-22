@@ -18,7 +18,8 @@ Open an EPUB whose ToC points at `<p class="calibre…">` chapter titles.
 
 - Chapter openings use the sans heading stack and the level sizes.
 - Body text remains EB Garamond / the configured body font.
-- Chapter titles no longer inherit weird publisher sizes or indentation; part and chapter titles are centred by the theme, section headings stay left.
+- Chapter titles no longer inherit weird publisher sizes or indentation; every heading level is centred by the theme, with a visible size ladder (part > chapter > section > minor).
+- A `<h3 class="sec1">` section head is centred and reads as a heading, not a bold body paragraph. On *Rethinking Meditation* chapter 8, "Secularism and the Secular Meditator" is centred at 1.25 rem, clearly smaller than the 1.50 rem chapter title.
 - Opening text is not glued to the title: the theme's bottom margin survives a publisher's negative pull-up on the block after the title (Oxford's `div.top { margin: -1em … }`).
 - A chapter number that the publisher separates only through its own stylesheet (`<h1><span class="chapter-number">19</span>Philosophy</h1>`, with no whitespace in the markup) stays on the title line in the heading's own face, separated by a word space — not welded to the title and not on a line above it. Page numbers and footnote markers in the same book stay inline and unchanged.
 - A number set as its own heading above the title (`<h2 class="ch_title1">8</h2><h2 class="ch_title2">Title</h2>`) is centred just above the title with a small gap, and the title keeps its full bottom margin. **Status** reports `Standalone chapter numbers: 1`.

@@ -17,12 +17,16 @@ function TestTheme:testDefaultsMatchTheSpec()
     luaunit.assertEquals(theme.body.weight, "normal")
     luaunit.assertEquals(theme.roles.part.family, "Alegreya Sans")
     luaunit.assertEquals(theme.roles.part.weight, "bold")
-    luaunit.assertEquals(theme.roles.part.size, "1.45rem")
-    luaunit.assertEquals(theme.roles.chapter.size, "1.30rem")
-    luaunit.assertEquals(theme.roles.section.size, "1.15rem")
-    luaunit.assertEquals(theme.roles.minor.size, "0.95rem")
+    luaunit.assertEquals(theme.roles.part.size, "1.75rem")
+    luaunit.assertEquals(theme.roles.chapter.size, "1.50rem")
+    luaunit.assertEquals(theme.roles.section.size, "1.25rem")
+    luaunit.assertEquals(theme.roles.minor.size, "1.00rem")
     luaunit.assertEquals(theme.roles.minor.case, "upper")
     luaunit.assertEquals(theme.roles.minor.spacing, "0.05em")
+    -- Every heading level is centred; the sizes must stay a visible ladder.
+    for _, role in ipairs({"part", "chapter", "section", "minor"}) do
+        luaunit.assertEquals(theme.roles[role].align, "center", role)
+    end
     luaunit.assertEquals(theme.roles.quote.family, "EB Garamond")
     luaunit.assertEquals(theme.roles.quote.style, "italic")
     luaunit.assertEquals(theme.toc_hints, true)
@@ -57,7 +61,7 @@ function TestTheme:testFromFontsChangesWholeRoles()
         luaunit.assertEquals(theme.roles[role].family, "FreeSans", role)
     end
     -- Sizes and weights stay on their defaults.
-    luaunit.assertEquals(theme.roles.chapter.size, "1.30rem")
+    luaunit.assertEquals(theme.roles.chapter.size, "1.50rem")
     luaunit.assertEquals(theme.roles.chapter.weight, "bold")
     luaunit.assertEquals(theme.roles.minor.case, "upper")
     luaunit.assertEquals(#Theme.validate(theme), 0)
@@ -144,7 +148,7 @@ function TestTheme:testLoadMigratesLegacyRoleTable()
     luaunit.assertEquals(theme.roles.section.family, "FreeSans")
     luaunit.assertEquals(theme.roles.quote.family, "Literata")
     -- Derived values do not migrate; they come from the defaults.
-    luaunit.assertEquals(theme.roles.section.size, "1.15rem")
+    luaunit.assertEquals(theme.roles.section.size, "1.25rem")
     luaunit.assertEquals(theme.roles.minor.case, "upper")
 end
 
@@ -187,9 +191,10 @@ function TestTheme:testCanonicalIsSortedAndStable()
 end
 
 function TestTheme:testHashIsStable()
-    -- 655593d8 is the default theme after part/chapter titles became centred
-    -- (2026-11-22); the previous default was 74cfd6d8.
-    luaunit.assertEquals(Theme.hash(Theme.defaults()), "655593d8")
+    -- 23cb147d is the default theme after every heading level became centred
+    -- and the size ladder widened (2026-11-22). The previous defaults were
+    -- 655593d8 (part/chapter centred) and 74cfd6d8 (all left).
+    luaunit.assertEquals(Theme.hash(Theme.defaults()), "23cb147d")
 end
 
 function TestTheme:testHashIsKeyOrderIndependent()
