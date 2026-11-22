@@ -35,7 +35,9 @@ Upgrading from Heading Normaliser: deploy with `tools/Device.ps1 Deploy`, which 
 - **Disable for this book**
 - **Diagnostics** — Status and detected headings, View/Copy/Export generated CSS, Prepare KOReader settings, Re-scan this book on next open.
 
-Everything except the two face choices is a fixed default: heading sizes 1.45/1.30/1.15/0.95 rem, bold headings, uppercase minor headings, left alignment, italic quotes. There is no per-level editor, so no combination of menu choices can produce a stylesheet the renderer cannot use.
+Everything except the two face choices is a fixed default: heading sizes 1.45/1.30/1.15/0.95 rem, bold headings, part and chapter titles centred, section and minor headings left, uppercase minor headings, extra space below part/chapter titles, italic quotes. There is no per-level editor, so no combination of menu choices can produce a stylesheet the renderer cannot use.
+
+A chapter number is kept with its title whether the book glues it inline (`19Philosophy`) or sets it as a separate heading above the title: inline gets a word space in the heading's own face, standalone gets a small gap above the title. A publisher's negative margin that pulls the opening paragraph up under the title is cancelled, so the title keeps its breathing room.
 
 ## Limits
 

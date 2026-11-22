@@ -170,4 +170,46 @@ function TestScan:testGluedChapterNumberGetsASpace()
     luaunit.assertEquals(result.stats.heading_markers, 1)
 end
 
+function TestScan:testBlockAfterTheChapterTitleLosesItsPullUp()
+    local result = Scan.scan(book({
+        ["OEBPS/chapter1.xhtml"] = [[
+            <html><body><div class="chapter">
+              <h1 class="chapter-title">Chapter One</h1>
+              <div class="top"><p class="epigraph">An epigraph.</p></div>
+              <p class="body">Ordinary text.</p>
+            </div></body></html>]],
+        ["OEBPS/chapter2.xhtml"] = [[
+            <html><body><div class="chapter">
+              <h1 class="chapter-title">Chapter Two</h1>
+              <p class="body">Opening text.</p>
+              <h2 class="section">A section</h2>
+              <p class="body2">Text after a section heading.</p>
+            </div></body></html>]],
+    }), {})
+    luaunit.assertNil(result.error)
+    -- The publisher's negative pull-up is cancelled on the block that directly
+    -- follows the chapter title. Both chapters' followers share one rule.
+    luaunit.assertStrContains(result.css, "div.top,\np.body {\n" ..
+        "    margin-top: 0 !important;\n}")
+    -- A section heading mid-chapter leaves the next block alone.
+    luaunit.assertNotStrContains(result.css, "p.body2 {\n    margin-top: 0")
+end
+
+function TestScan:testStandaloneNumberHeadingIsTightenedToItsTitle()
+    local result = Scan.scan(book({
+        ["OEBPS/chapter1.xhtml"] = [[
+            <html><body>
+              <h2 class="ch_title1">1</h2>
+              <h2 class="ch_title2">Chapter One</h2>
+              <p class="body">Ordinary text.</p>
+            </body></html>]],
+    }), {})
+    luaunit.assertNil(result.error)
+    luaunit.assertStrContains(result.css, "h2.ch_title1 {\n" ..
+        "    margin: 2.4rem 0 0.3rem 0 !important;\n}")
+    luaunit.assertStrContains(result.css, "h2.ch_title2 {\n" ..
+        "    margin: 0 0 1.5rem 0 !important;\n}")
+    luaunit.assertEquals(result.stats.heading_numbers, 1)
+end
+
 return TestScan

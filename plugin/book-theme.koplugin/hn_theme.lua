@@ -51,16 +51,20 @@ local ALIGNS = {left = true, center = true}
 Theme.DEFAULT_FONTS = {body = "EB Garamond", heading = "Alegreya Sans"}
 
 -- The resolved theme the generator consumes. `roles` is the whole typographic
--- spec: only `family` is ever changed by the UI.
+-- spec: only `family` is ever changed by the UI. Part and chapter titles are
+-- centred because that is the book convention (Standard Ebooks centres every
+-- heading; a chapter opener that starts at the left margin reads as body text
+-- on a small screen). Section and minor headings stay at the left margin,
+-- where they function as in-text subheads.
 function Theme.defaults()
     return {
         version = 1,
         body = {family = Theme.DEFAULT_FONTS.body, weight = "normal"},
         roles = {
             part = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.45rem",
-                case = "none", align = "left"},
+                case = "none", align = "center"},
             chapter = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.30rem",
-                case = "none", align = "left"},
+                case = "none", align = "center"},
             section = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.15rem",
                 case = "none", align = "left"},
             minor = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "0.95rem",

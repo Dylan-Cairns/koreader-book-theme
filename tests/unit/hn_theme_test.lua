@@ -187,7 +187,9 @@ function TestTheme:testCanonicalIsSortedAndStable()
 end
 
 function TestTheme:testHashIsStable()
-    luaunit.assertEquals(Theme.hash(Theme.defaults()), "74cfd6d8")
+    -- 655593d8 is the default theme after part/chapter titles became centred
+    -- (2026-11-22); the previous default was 74cfd6d8.
+    luaunit.assertEquals(Theme.hash(Theme.defaults()), "655593d8")
 end
 
 function TestTheme:testHashIsKeyOrderIndependent()

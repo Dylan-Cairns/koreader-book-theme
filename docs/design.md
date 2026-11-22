@@ -93,17 +93,23 @@ Per-document candidates are merged by selector. A selector may not restyle many 
 
 ## Theme
 
-Book Theme exposes exactly two choices: the body face and the heading face. The body face also types quotes and epigraphs; the heading face is shared by every heading role. Everything else is a fixed default in `Theme.defaults()` — part/chapter/section/minor at 1.45/1.30/1.15/0.95 rem, bold, left aligned, uppercase minor headings with `0.05em` spacing, italic quotes. Real `h1`–`h6` and detected pseudo-headings share those roles, so a book with clean markup and a Calibre-converted book look the same.
+Book Theme exposes exactly two choices: the body face and the heading face. The body face also types quotes and epigraphs; the heading face is shared by every heading role. Everything else is a fixed default in `Theme.defaults()` — part/chapter/section/minor at 1.45/1.30/1.15/0.95 rem, bold, part and chapter titles centred, section and minor headings left, uppercase minor headings with `0.05em` spacing, italic quotes, and fixed vertical metrics per role (part `2.8rem 0 1.8rem`, chapter `2.4rem 0 1.5rem`, section `1.9rem 0 0.8rem`, minor `1.5rem 0 0.5rem`). Real `h1`–`h6` and detected pseudo-headings share those roles, so a book with clean markup and a Calibre-converted book look the same.
+
+Centring part and chapter titles follows the trade convention rather than a personal preference: Standard Ebooks' own `core.css` sets `text-align: center` and `margin: 3em 0` on every `h1`–`h6`, and Draft2Digital's EPUB formatter also centres chapter headings. Section and minor headings stay at the left margin because they function as in-text subheads, where a centred line would break the reading flow. The space below a chapter or part title is deliberately larger than the space above it: on device, the earlier `0.65rem` bottom margin left the opening paragraph looking glued to the title.
 
 `Theme.load` reads the stored `{body_font, heading_font}` table. A settings table from a build before the simplification is still accepted: it keeps the body face and any heading face that differs from the default, and drops the derived sizes and weights. Families are validated (length, character set) before they reach CSS, and an invalid one falls back to its default with a logged problem, so a corrupt settings table can never inject CSS or stop a book from opening.
 
-`Theme.canonical` serialises the resolved theme into sorted `key=value;` lines and `Theme.hash` runs FNV-1a over it. The hash is the per-book cache key: changing either face invalidates that book's cached CSS on the next open, while the default theme keeps the long-standing `74cfd6d8`.
+`Theme.canonical` serialises the resolved theme into sorted `key=value;` lines and `Theme.hash` runs FNV-1a over it. The hash is the per-book cache key: changing either face invalidates that book's cached CSS on the next open. The default theme hash is `655593d8` since part and chapter titles became centred (2026-11-22); the previous default was `74cfd6d8`.
 
 ## Output
 
 The generated stylesheet has a fixed shape: a banner with the theme hash, the body family and weight, a universal `font-family: inherit` reset, a monospace exception for `pre`/`code`/`kbd`/`samp`/`tt`, paragraph family/weight/line-height inheritance, `sup`/`sub` sizing (publisher CSS normally carries it, and with publisher CSS off a note reference would render at body size on the baseline), quote type on `blockquote`, and real heading rules for `h1`–`h6`. Detected pseudo-headings add rules at their detected level, keep the publisher span reset, and are the only rules with a `-cr-hint: toc-levelN` hint. Detected quotes get the quote role and no hint.
 
 A heading that opens with a bare, glued number - `<h1><span class="chapter-number">19</span>Philosophy</h1>` - relies on the publisher's stylesheet for whatever separates the number from the title. The scan records those markers (a real heading whose first non-empty child is a 1-3 digit marker, no whitespace before the title, and whose class does not contain `page`, `note`, `ref`, `bullet`, `marker`, `toc` or `index`) and the generator gives that class `display: inline-block`, `margin-right: 0.35em` and `font-family: inherit`. The number therefore stays on the title line in the heading's own face at the heading's own size, separated by a word space; the inline form was the owner's choice over reproducing the publisher's block line. `font-family: inherit` also overrides a reader's style tweak that forces every `span` to the body face. The exclusion list matters: page numbers, footnote markers, list bullets and ToC numbers share the markup but must stay inline untouched. This is scoped to the marker class inside a heading, so body text can never match.
+
+Some publishers set the number as its own heading and the title as the next heading (`<h2 class="ch_title1">8</h2><h2 class="ch_title2">Title</h2>`). The scan pairs them when the first heading's text is only a 1-3 digit number, the next *block* element is another heading with title text, and the marker exclusions still pass; both headings need a class or id selector, because a bare tag would restyle every heading of that level. The generator then keeps the number's role top margin, gives it `0.3rem` below, and removes the title's top margin. Both pair rules spell out the full `margin` shorthand so a later override cannot leave one side at its default.
+
+Publisher CSS often pulls the opening block up under a chapter title with a negative top margin — Oxford's own stylesheet uses `div.top { margin: -1em 2em 2em 2em }` — which silently cancels the title's bottom margin. For each document the scan records the block after the first heading and after a number-pair title, and the generator sets `margin-top: 0` on those selectors. The title's own bottom margin then survives, and unrelated blocks keep their spacing. Section headings mid-document are deliberately not followed this way.
 
 The base stylesheet is emitted even when no pseudo-heading is found, so `css` is never empty for a readable book. The scan still reports `no-pseudo-headings`.
 
@@ -119,15 +125,15 @@ The generated CSS and a compact report live in the book's sidecar:
 
 ```lua
 book_theme = {
-    version = 4,
-    theme_hash = "74cfd6d8",
+    version = 9,
+    theme_hash = "655593d8",
     css = "...",
     report = { ... },
     scanned_at = 1234567890,
 }
 ```
 
-A cache is reused only when its version, `css` and theme hash match the current build. A mismatch triggers one lazy rescan on the next open. The Heading Normaliser cache (version 1, no hash) therefore rebuilds once per book, and version 4 rebuilds everything once to pick up the chapter-marker rule. Changing either face changes the theme hash and rebuilds exactly the affected books.
+A cache is reused only when its version, `css` and theme hash match the current build. A mismatch triggers one lazy rescan on the next open. The Heading Normaliser cache (version 1, no hash) therefore rebuilds once per book. Version 4 added the chapter-marker rule; version 6 centred part and chapter titles, widened their spacing and added the number/title pair; version 9 added the pull-up cancellation. Changing either face changes the theme hash and rebuilds exactly the affected books.
 
 `css = ""` is a completed scan that produced no stylesheet (for example a skipped book); `css = nil` is not a completed scan. Re-scan deletes the setting; the next open rebuilds it. Saves always write `book_theme`; the legacy `heading_normalizer` key is read as a fallback and left untouched.
 

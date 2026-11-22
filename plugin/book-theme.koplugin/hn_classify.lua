@@ -137,7 +137,7 @@ end
 -- publisher's CSS for the break or gap. With publisher CSS disabled the number
 -- is welded to the title, and the heading descendant reset renders it at full
 -- heading size. Return the marker's class token so the generator can give that
--- one class its own line; nil for every other shape. The class exclusions are
+-- one class a gap; nil for every other shape. The class exclusions are
 -- deliberate: footnote markers, page numbers, list bullets and ToC numbers
 -- share the same markup but must stay inline (corpus audit 2026-11-21).
 local MARKER_CLASS_BLOCKED = {
@@ -188,6 +188,46 @@ function Classify.heading_marker(element)
     if own == "" or own:match("^%s") then return nil end
 
     return marker_class(marker)
+end
+
+-- A selector for an element that is itself the styling target, headings
+-- included (unlike `selector_for`, which climbs to a block for candidates).
+-- Class first, because a class rule covers every chapter of the book; then a
+-- stable id; never the bare tag, which would restyle every heading of that
+-- level.
+function Classify.selector(element)
+    if not element or element.tag == "body" or element.tag == "html" then return nil end
+    local classes = {}
+    for _, class_name in ipairs(element.classes) do
+        if valid_ident(class_name) then classes[#classes + 1] = class_name end
+    end
+    if #classes > 0 then
+        return element.tag .. "." .. table.concat(classes, ".")
+    end
+    if valid_ident(element.id) then
+        return element.tag .. "#" .. element.id
+    end
+    return nil
+end
+
+-- Some publishers set the chapter number as its own heading and the title as
+-- the next heading ("<h2 class=\"ch_title1\">8</h2><h2 class=\"ch_title2\">Title</h2>").
+-- The two are one title block: the number should sit close to the title, and
+-- the title should keep the space below for the opening text. Return both
+-- selectors when the shape matches, nil otherwise.
+function Classify.heading_number(element, following)
+    if not element or not HEADING_TAGS[element.tag] then return nil end
+    local text = Util.trim(element.text or "")
+    if not text:match("^%d%d?%d?[%.:]?$") then return nil end
+    -- Reuse the marker class exclusions (page, note, ref, bullet, ...).
+    if #element.classes > 0 and marker_class(element) == nil then return nil end
+    if not following or not HEADING_TAGS[following.tag] then return nil end
+    local title = Util.trim(following.text or "")
+    if title == "" or title:match("^%d%d?%d?[%.:]?$") then return nil end
+    local number_selector = Classify.selector(element)
+    local title_selector = Classify.selector(following)
+    if not number_selector or not title_selector then return nil end
+    return number_selector, title_selector
 end
 
 -- Layout candidates are short. Navigation targets are allowed to be a little

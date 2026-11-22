@@ -82,4 +82,55 @@ function TestMarker:testUnselectableMarkerIsSkipped()
     luaunit.assertNil(marker('<h1><span>19</span>Philosophy</h1>'))
 end
 
+-- A number set as its own heading, with the title as the next heading, is one
+-- title block. Both selectors come back so the generator can tighten the gap
+-- between them without losing the space below the title.
+
+local function number_pair(html)
+    local doc = Html.parse(html)
+    for index, element in ipairs(doc.elements) do
+        if Html.is_heading(element.tag) then
+            local following
+            for later = index + 1, #doc.elements do
+                local candidate = doc.elements[later]
+                if Html.is_block(candidate.tag)
+                    and candidate.tag ~= "body" and candidate.tag ~= "html" then
+                    following = candidate
+                    break
+                end
+            end
+            return Classify.heading_number(element, following)
+        end
+    end
+    return nil
+end
+
+function TestMarker:testStandaloneNumberHeadingIsPairedWithTheTitle()
+    local number, title = number_pair(
+        '<h2 class="ch_title1"><a id="p1"/><a href="toc">8</a></h2>' ..
+        '<h2 class="ch_title2"><a href="toc">Secularism and the Ethic</a></h2>')
+    luaunit.assertEquals(number, "h2.ch_title1")
+    luaunit.assertEquals(title, "h2.ch_title2")
+end
+
+function TestMarker:testNumberHeadingWithoutAFollowingHeadingIsIgnored()
+    luaunit.assertNil(number_pair('<h2 class="ch_title1">8</h2><p>Body text.</p>'))
+    luaunit.assertNil(number_pair('<h2 class="ch_title1">8</h2>'))
+end
+
+function TestMarker:testNumberHeadingNeedsSelectorsForBothHeadings()
+    -- Without a class or id there is no safe selector: the bare tag would
+    -- restyle every heading of that level.
+    luaunit.assertNil(number_pair('<h2>8</h2><h2>Title</h2>'))
+end
+
+function TestMarker:testTwoNumberHeadingsAreNotATitlePair()
+    luaunit.assertNil(number_pair('<h2 class="a">8</h2><h2 class="b">9</h2>'))
+end
+
+function TestMarker:testPageNumberHeadingIsNotAChapterNumber()
+    luaunit.assertNil(number_pair(
+        '<h2 class="pagebreak-rw">281</h2><h2 class="ch_title">Notes</h2>'))
+end
+
 return TestMarker

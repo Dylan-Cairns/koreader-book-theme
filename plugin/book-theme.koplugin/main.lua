@@ -23,9 +23,13 @@ local Cache = require("hn_cache")
 -- Version 3 changes detection (semantic kind gate, ToC shape check, quotes).
 -- Version 4 adds the glued chapter-number rules and sup/sub defaults, and the
 -- theme settings shrink to two fonts. Version 5 turns the chapter-number rule
--- from a block line into an inline gap, so every cached stylesheet is rebuilt
--- once.
-local VERSION = 5
+-- from a block line into an inline gap. Version 6 centres part/chapter titles,
+-- widens the space below them and pairs a standalone number heading with the
+-- title heading. Version 7 makes the pair rules repeat the full margin
+-- shorthand. Version 9 cancels a publisher's negative pull-up on the block
+-- after a chapter title (version 8 existed only as a spacing probe on the test
+-- device and was never committed).
+local VERSION = 9
 
 -- Saves always write the current key. The legacy heading_normalizer* keys are
 -- read only as a fallback, so an existing device state survives the rename. A
@@ -270,6 +274,10 @@ function BookTheme:formatReport()
     if (stats.heading_markers or 0) > 0 then
         lines[#lines + 1] = string.format(_("Glued chapter numbers: %d"),
             stats.heading_markers)
+    end
+    if (stats.heading_numbers or 0) > 0 then
+        lines[#lines + 1] = string.format(_("Standalone chapter numbers: %d"),
+            stats.heading_numbers)
     end
     for _, candidate in ipairs(report.candidates or {}) do
         lines[#lines + 1] = string.format("L%d  %s  (%d)  %s",

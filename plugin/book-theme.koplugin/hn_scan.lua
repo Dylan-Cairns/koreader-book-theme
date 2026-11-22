@@ -60,6 +60,19 @@ local function read_limited(reader, path, limit, warnings)
     return content
 end
 
+-- The next block element after `index`. Inline anchors are common inside and
+-- between headings, so a plain `index + 1` would land on the wrong node.
+local function next_block_element(elements, index)
+    for later = index + 1, #elements do
+        local candidate = elements[later]
+        if Html.is_block(candidate.tag)
+            and candidate.tag ~= "body" and candidate.tag ~= "html" then
+            return candidate, later
+        end
+    end
+    return nil
+end
+
 function Scan.scan(reader, options)
     options = options or {}
     local settings = {}
@@ -125,6 +138,8 @@ function Scan.scan(reader, options)
 
         local candidates, selector_totals = {}, {}
         local markers = {}
+        local number_selectors, title_selectors = {}, {}
+        local title_followers = {}
         for _, path in ipairs(documents) do
             if front_matter[path] then
                 result.stats.front_matter_documents =
@@ -135,11 +150,56 @@ function Scan.scan(reader, options)
                 local parsed, doc = pcall(Html.parse, html)
                 if parsed then
                     -- A heading that opens with a bare, glued chapter number
-                    -- needs a break even when the publisher CSS is off.
-                    for _, element in ipairs(doc.elements) do
+                    -- needs a gap even when the publisher CSS is off. A number
+                    -- that is its own heading before the title needs the two
+                    -- blocks tightened into one title block instead.
+                    local numbers, number_titles = {}, {}
+                    local first_heading_index
+                    local pair_title_indexes = {}
+                    for index, element in ipairs(doc.elements) do
                         local token = Classify.heading_marker(element)
                         if token then
                             markers[element.tag .. " ." .. token] = true
+                        end
+                        local following, following_index =
+                            next_block_element(doc.elements, index)
+                        local number_selector, title_selector =
+                            Classify.heading_number(element, following)
+                        if number_selector then
+                            numbers[number_selector] = true
+                            number_titles[title_selector] = true
+                            pair_title_indexes[#pair_title_indexes + 1] = following_index
+                        end
+                        if not first_heading_index and Html.is_heading(element.tag) then
+                            first_heading_index = index
+                        end
+                    end
+                    -- Publishers often pull the opening block up under the
+                    -- chapter title with a negative top margin. Remember that
+                    -- block so the generator can cancel the pull-up; without it
+                    -- the title's own bottom margin disappears on device.
+                    if not front_matter[path] then
+                        local function record_follower(index)
+                            if not index then return end
+                            local follower = next_block_element(doc.elements, index)
+                            if follower and not Html.is_heading(follower.tag) then
+                                local selector = Classify.selector(follower)
+                                if selector then title_followers[selector] = true end
+                            end
+                        end
+                        record_follower(first_heading_index)
+                        for _, index in ipairs(pair_title_indexes) do
+                            record_follower(index)
+                        end
+                    end
+                    for selector in pairs(numbers) do
+                        if not number_titles[selector] then
+                            number_selectors[selector] = true
+                        end
+                    end
+                    for selector in pairs(number_titles) do
+                        if not numbers[selector] then
+                            title_selectors[selector] = true
                         end
                     end
                     local classified, found, totals = pcall(Classify.classify_file,
@@ -191,6 +251,20 @@ function Scan.scan(reader, options)
         table.sort(marker_list)
         result.stats.heading_markers = #marker_list
         settings.markers = marker_list
+        local numbers, titles = {}, {}
+        for selector in pairs(number_selectors) do numbers[#numbers + 1] = selector end
+        for selector in pairs(title_selectors) do titles[#titles + 1] = selector end
+        table.sort(numbers)
+        table.sort(titles)
+        result.stats.heading_numbers = #numbers
+        settings.number_headings = numbers
+        settings.number_titles = titles
+        local followers = {}
+        for selector in pairs(title_followers) do
+            followers[#followers + 1] = selector
+        end
+        table.sort(followers)
+        settings.title_followers = followers
         -- The base stylesheet (body, real headings, quote type) applies even
         -- when no pseudo-heading was found, so CSS is never nil for a book we
         -- could read.

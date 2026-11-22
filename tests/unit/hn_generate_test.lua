@@ -212,6 +212,52 @@ function TestGenerate:testMarkersAreSortedAndDeduplicated()
     luaunit.assertEquals(Helpers.count(css, "h1 .chapter-number,\nh2 .num {"), 1)
 end
 
+function TestGenerate:testStandaloneNumberSitsCloseToItsTitle()
+    local css = generate({}, nil, {
+        number_headings = {"h2.ch_title1"},
+        number_titles = {"h2.ch_title2"},
+    })
+    local number = block(css, "h2.ch_title1")
+    luaunit.assertNotNil(number)
+    -- Full shorthand: a longhand override lost the other sides in crengine.
+    luaunit.assertStrContains(number, "margin: 2.4rem 0 0.3rem 0 !important;")
+    local title = block(css, "h2.ch_title2")
+    luaunit.assertNotNil(title)
+    luaunit.assertStrContains(title, "margin: 0 0 1.5rem 0 !important;")
+end
+
+function TestGenerate:testStandaloneNumberUsesTheMetricsOfItsHeadingLevel()
+    local css = generate({}, nil, {
+        number_headings = {"h1.part-number"},
+        number_titles = {"h1.part-title"},
+    })
+    local number = block(css, "h1.part-number")
+    luaunit.assertStrContains(number, "margin: 2.8rem 0 0.3rem 0 !important;")
+    local title = block(css, "h1.part-title")
+    luaunit.assertStrContains(title, "margin: 0 0 1.8rem 0 !important;")
+end
+
+function TestGenerate:testTitleFollowerLosesItsPullUp()
+    local css = generate({}, nil, {title_followers = {"div.top", "p.first"}})
+    local top = block(css, "div.top")
+    luaunit.assertNotNil(top)
+    luaunit.assertStrContains(top, "margin-top: 0 !important;")
+    -- Deduplicated and sorted into one rule.
+    luaunit.assertStrContains(css, "div.top,\np.first {\n    margin-top: 0 !important;\n}")
+end
+
+function TestGenerate:testChapterTitlesAreCentredAndHaveRoomBelow()
+    local theme = Theme.defaults()
+    luaunit.assertEquals(theme.roles.chapter.align, "center")
+    luaunit.assertEquals(theme.roles.part.align, "center")
+    -- Subheads stay at the margin so they read as part of the prose.
+    luaunit.assertEquals(theme.roles.section.align, "left")
+    local css = generate({})
+    local chapter = block(css, "h2")
+    luaunit.assertStrContains(chapter, "text-align: center !important;")
+    luaunit.assertStrContains(chapter, "margin: 2.4rem 0 1.5rem !important;")
+end
+
 function TestGenerate:testMarkerRuleAppliesOnlyToTheNamedClass()
     local css = generate({}, nil, {markers = {"h1 .chapter-number"}})
     -- Body paragraphs and other headings are untouched.
