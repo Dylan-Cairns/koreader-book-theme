@@ -93,15 +93,17 @@ Per-document candidates are merged by selector. A selector may not restyle many 
 
 ## Theme
 
-Book Theme owns the document type through a small theme table: the body face and weight, one style per heading role (Part, Chapter, Section, Minor heading) and a quote role. Real `h1`–`h6` and detected pseudo-headings share the same role scale, so a book with clean markup and a Calibre-converted book look the same.
+Book Theme exposes exactly two choices: the body face and the heading face. The body face also types quotes and epigraphs; the heading face is shared by every heading role. Everything else is a fixed default in `Theme.defaults()` — part/chapter/section/minor at 1.45/1.30/1.15/0.95 rem, bold, left aligned, uppercase minor headings with `0.05em` spacing, italic quotes. Real `h1`–`h6` and detected pseudo-headings share those roles, so a book with clean markup and a Calibre-converted book look the same.
 
-The theme is merged over built-in defaults and validated field by field before it reaches CSS. The font family pattern excludes quotes, semicolons, braces and newlines, sizes are restricted to a `rem` range and unknown roles or fields are rejected. Invalid stored values fall back to their default and are reported, so a corrupt settings table can never inject CSS or stop a book from opening.
+`Theme.load` reads the stored `{body_font, heading_font}` table. A settings table from a build before the simplification is still accepted: it keeps the body face and any heading face that differs from the default, and drops the derived sizes and weights. Families are validated (length, character set) before they reach CSS, and an invalid one falls back to its default with a logged problem, so a corrupt settings table can never inject CSS or stop a book from opening.
 
-`Theme.canonical` serialises the effective theme into sorted `key=value;` lines and `Theme.hash` runs FNV-1a over it. The hash is the per-book cache key: changing one role font invalidates that book's cached CSS on the next open.
+`Theme.canonical` serialises the resolved theme into sorted `key=value;` lines and `Theme.hash` runs FNV-1a over it. The hash is the per-book cache key: changing either face invalidates that book's cached CSS on the next open, while the default theme keeps the long-standing `74cfd6d8`.
 
 ## Output
 
-The generated stylesheet has a fixed shape: a banner with the theme hash, the body family and weight, a universal `font-family: inherit` reset, a monospace exception for `pre`/`code`/`kbd`/`samp`/`tt`, paragraph family/weight/line-height inheritance, quote type on `blockquote`, and real heading rules for `h1`–`h6`. Detected pseudo-headings add rules at their detected level, keep the publisher span reset, and are the only rules with a `-cr-hint: toc-levelN` hint. Detected quotes get the quote role and no hint.
+The generated stylesheet has a fixed shape: a banner with the theme hash, the body family and weight, a universal `font-family: inherit` reset, a monospace exception for `pre`/`code`/`kbd`/`samp`/`tt`, paragraph family/weight/line-height inheritance, `sup`/`sub` sizing (publisher CSS normally carries it, and with publisher CSS off a note reference would render at body size on the baseline), quote type on `blockquote`, and real heading rules for `h1`–`h6`. Detected pseudo-headings add rules at their detected level, keep the publisher span reset, and are the only rules with a `-cr-hint: toc-levelN` hint. Detected quotes get the quote role and no hint.
+
+A heading that opens with a bare, glued number — `<h1><span class="chapter-number">19</span>Philosophy</h1>` — relies on the publisher's stylesheet for the line break. The scan records those markers (a real heading whose first non-empty child is a 1–3 digit marker, no whitespace before the title, and whose class does not contain `page`, `note`, `ref`, `bullet`, `marker`, `toc` or `index`) and the generator gives that class `display: block` plus a smaller size and letter spacing. The exclusion list matters: page numbers, footnote markers, list bullets and ToC numbers share the markup but must stay inline. This is scoped to the marker class inside a heading, so body text can never match.
 
 The base stylesheet is emitted even when no pseudo-heading is found, so `css` is never empty for a readable book. The scan still reports `no-pseudo-headings`.
 
@@ -117,7 +119,7 @@ The generated CSS and a compact report live in the book's sidecar:
 
 ```lua
 book_theme = {
-    version = 3,
+    version = 4,
     theme_hash = "74cfd6d8",
     css = "...",
     report = { ... },
@@ -125,7 +127,7 @@ book_theme = {
 }
 ```
 
-A cache is reused only when its version, `css` and theme hash match the current build. A mismatch triggers one lazy rescan on the next open. The Heading Normaliser cache (version 1, no hash) therefore rebuilds once per book. Changing a role font changes the theme hash and rebuilds exactly the affected books.
+A cache is reused only when its version, `css` and theme hash match the current build. A mismatch triggers one lazy rescan on the next open. The Heading Normaliser cache (version 1, no hash) therefore rebuilds once per book, and version 4 rebuilds everything once to pick up the chapter-marker rule. Changing either face changes the theme hash and rebuilds exactly the affected books.
 
 `css = ""` is a completed scan that produced no stylesheet (for example a skipped book); `css = nil` is not a completed scan. Re-scan deletes the setting; the next open rebuilds it. Saves always write `book_theme`; the legacy `heading_normalizer` key is read as a fallback and left untouched.
 

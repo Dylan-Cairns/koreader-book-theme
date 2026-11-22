@@ -176,4 +176,45 @@ function TestGenerate:testBodySizeIsNeverForced()
     luaunit.assertNotStrContains(block(css, "p, li, dd, dt, blockquote"), "font-size:")
 end
 
+function TestGenerate:testSupAndSubGetDefaults()
+    local css = generate({})
+    local inline = block(css, "sup, sub")
+    luaunit.assertNotNil(inline)
+    luaunit.assertStrContains(inline, "font-size: 0.7em !important;")
+    luaunit.assertStrContains(inline, "line-height: 0 !important;")
+    luaunit.assertStrContains(css, "sup { vertical-align: super !important; }")
+    luaunit.assertStrContains(css, "sub { vertical-align: sub !important; }")
+end
+
+function TestGenerate:testNoMarkerRuleWithoutMarkers()
+    local css = generate({})
+    luaunit.assertNotStrContains(css, "display: block !important;")
+end
+
+function TestGenerate:testHeadingMarkerGetsItsOwnLine()
+    local css = generate({}, nil, {markers = {"h1 .chapter-number"}})
+    local marker = block(css, "h1 .chapter-number")
+    luaunit.assertNotNil(marker)
+    luaunit.assertStrContains(marker, "display: block !important;")
+    luaunit.assertStrContains(marker, "font-size: 0.75em !important;")
+    luaunit.assertStrContains(marker, "letter-spacing: 0.1em !important;")
+    luaunit.assertStrContains(marker, "margin: 0 0 0.3em 0 !important;")
+    -- The heading itself keeps the theme type.
+    luaunit.assertNotStrContains(marker, "font-family:")
+end
+
+function TestGenerate:testMarkersAreSortedAndDeduplicated()
+    local css = generate({}, nil, {
+        markers = {"h2 .num", "h1 .chapter-number", "h2 .num"},
+    })
+    luaunit.assertEquals(Helpers.count(css, "h1 .chapter-number,\nh2 .num {"), 1)
+end
+
+function TestGenerate:testMarkerRuleAppliesOnlyToTheNamedClass()
+    local css = generate({}, nil, {markers = {"h1 .chapter-number"}})
+    -- Body paragraphs and other headings are untouched.
+    luaunit.assertNotStrContains(block(css, "p, li, dd, dt, blockquote"), "display: block")
+    luaunit.assertNotStrContains(block(css, "h1"), "display: block")
+end
+
 return TestGenerate

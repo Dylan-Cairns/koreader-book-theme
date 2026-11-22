@@ -68,6 +68,13 @@ local function new_element(doc, tag, attrs, parent)
     for _, class_name in ipairs(element.classes) do
         element.class_set[class_name] = true
     end
+    -- Text that precedes this element inside a heading. Used to tell a leading
+    -- chapter number ("<h1><span>19</span>Philosophy</h1>") from a number that
+    -- follows title text. The parser only snapshots it for headings, where the
+    -- accessory rule is allowed to act.
+    if parent and HEADING[parent.tag] then
+        element.lead_text = parent.own_text or ""
+    end
     doc.elements[element.index] = element
     if parent then parent.children[#parent.children + 1] = element end
     if element.id and element.id ~= "" and not doc.by_id[element.id] then

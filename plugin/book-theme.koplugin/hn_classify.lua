@@ -132,6 +132,64 @@ local function selector_for(element)
     return nil
 end
 
+-- A heading that opens with a bare number and runs straight into the title
+-- ("<h1><span class=\"chapter-number\">19</span>Philosophy</h1>") relies on the
+-- publisher's CSS for the break or gap. With publisher CSS disabled the number
+-- is welded to the title, and the heading descendant reset renders it at full
+-- heading size. Return the marker's class token so the generator can give that
+-- one class its own line; nil for every other shape. The class exclusions are
+-- deliberate: footnote markers, page numbers, list bullets and ToC numbers
+-- share the same markup but must stay inline (corpus audit 2026-11-21).
+local MARKER_CLASS_BLOCKED = {
+    "page", "note", "ref", "bullet", "marker", "toc", "index",
+}
+
+local function marker_class(child)
+    for _, class_name in ipairs(child.classes) do
+        if valid_ident(class_name) then
+            local lowered = class_name:lower()
+            local blocked = false
+            for _, token in ipairs(MARKER_CLASS_BLOCKED) do
+                if lowered:find(token, 1, true) then
+                    blocked = true
+                    break
+                end
+            end
+            if not blocked then return class_name end
+        end
+    end
+    return nil
+end
+
+function Classify.heading_marker(element)
+    if not element or not HEADING_TAGS[element.tag] then return nil end
+
+    -- The first element child that actually has text. Empty <a id> anchors
+    -- are extremely common at the start of a heading and must not hide the
+    -- marker behind them.
+    local marker
+    for _, child in ipairs(element.children) do
+        if Util.trim(child.text or "") ~= "" then
+            marker = child
+            break
+        end
+    end
+    if not marker then return nil end
+    if Html.is_block(marker.tag) then return nil end
+
+    -- A number that follows title text belongs to the sentence.
+    if (marker.lead_text or "") ~= "" then return nil end
+
+    local text = Util.trim(marker.text)
+    if not text:match("^%d%d?%d?[%.:%)]?$") then return nil end
+
+    -- Only the glued shape needs help: existing whitespace already separates.
+    local own = element.own_text or ""
+    if own == "" or own:match("^%s") then return nil end
+
+    return marker_class(marker)
+end
+
 -- Layout candidates are short. Navigation targets are allowed to be a little
 -- longer (chapter subtitles), but not a whole paragraph.
 local function text_ok(text)

@@ -1,12 +1,19 @@
--- Theme model for Book Theme. A theme is a plain table that describes the
--- document's type: the body face and weight, one style per heading role, and a
--- quote role. Everything here is pure Lua and deterministic. Validation is the
--- boundary between stored settings and CSS injection, and the canonical form
--- feeds the per-book cache key (a theme change invalidates cached styles).
+-- Theme model for Book Theme. The reader-facing settings are just two font
+-- families: the body face and the heading face. Weights, sizes, case,
+-- alignment and spacing are fixed, tested defaults -- a reader who does not
+-- want to tinker gets a good document, and there is no per-role control that
+-- can produce an unrenderable combination. Everything here is pure Lua and
+-- deterministic. Validation is the boundary between stored settings and CSS
+-- injection, and the canonical form feeds the per-book cache key (a font
+-- change invalidates cached styles).
 
 local Theme = {}
 
 local ROLE_ORDER = {"part", "chapter", "section", "minor", "quote"}
+local HEADING_ROLES = {"part", "chapter", "section", "minor"}
+
+-- Stored settings are exactly these two keys.
+local FONT_FIELDS = {body_font = true, heading_font = true}
 
 local TOP_FIELDS = {version = true, body = true, roles = true, toc_hints = true}
 
@@ -41,30 +48,24 @@ local STYLES = {normal = true, italic = true}
 local CASES = {none = true, upper = true}
 local ALIGNS = {left = true, center = true}
 
-local FUNCTION = {
-    family = "font family name",
-    weight = "font weight",
-    style = "font style",
-    size = "font size",
-    case = "text case",
-    align = "text alignment",
-    spacing = "letter spacing",
-}
+Theme.DEFAULT_FONTS = {body = "EB Garamond", heading = "Alegreya Sans"}
 
+-- The resolved theme the generator consumes. `roles` is the whole typographic
+-- spec: only `family` is ever changed by the UI.
 function Theme.defaults()
     return {
         version = 1,
-        body = {family = "EB Garamond", weight = "normal"},
+        body = {family = Theme.DEFAULT_FONTS.body, weight = "normal"},
         roles = {
-            part = {family = "Alegreya Sans", weight = "bold", size = "1.45rem",
+            part = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.45rem",
                 case = "none", align = "left"},
-            chapter = {family = "Alegreya Sans", weight = "bold", size = "1.30rem",
+            chapter = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.30rem",
                 case = "none", align = "left"},
-            section = {family = "Alegreya Sans", weight = "bold", size = "1.15rem",
+            section = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.15rem",
                 case = "none", align = "left"},
-            minor = {family = "Alegreya Sans", weight = "bold", size = "0.95rem",
+            minor = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "0.95rem",
                 case = "upper", align = "left", spacing = "0.05em"},
-            quote = {family = "EB Garamond", weight = "normal", style = "italic"},
+            quote = {family = Theme.DEFAULT_FONTS.body, weight = "normal", style = "italic"},
         },
         toc_hints = true,
     }
@@ -124,7 +125,7 @@ local function field_problem(field, value)
         if value == nil then return nil end
         return spacing_problem(value)
     end
-    return "is not a " .. (FUNCTION[field] or "theme") .. " field"
+    return nil
 end
 
 local function check_role(problems, path, values, role)
@@ -191,90 +192,118 @@ function Theme.validate(theme)
     return problems
 end
 
-local function merge_role(target, stored, path, role, problems)
-    local allowed = ROLE_FIELDS[role]
-    -- Sorted so the first reported problem is stable.
-    local fields = {}
-    for field in pairs(stored) do fields[#fields + 1] = field end
-    table.sort(fields)
-    for _, field in ipairs(fields) do
-        local value = stored[field]
-        if not allowed[field] then
-            problems[#problems + 1] = "unknown field '" .. path .. "." .. tostring(field) .. "'"
+-- Read the two families a resolved theme encodes. A malformed table yields
+-- nil values rather than an error; the menu simply shows nothing checked.
+function Theme.fonts(theme)
+    theme = theme or Theme.defaults()
+    local body = type(theme.body) == "table" and theme.body or {}
+    local roles = type(theme.roles) == "table" and theme.roles or {}
+    local chapter = type(roles.chapter) == "table" and roles.chapter or {}
+    return {body = body.family, heading = chapter.family}
+end
+
+-- Build a resolved theme from the two families. A missing family keeps its
+-- default; an invalid one is reported and keeps its default too, so the
+-- caller never gets a theme it cannot render.
+function Theme.from_fonts(fonts)
+    local theme = Theme.defaults()
+    local problems = {}
+    fonts = type(fonts) == "table" and fonts or {}
+
+    if fonts.body ~= nil then
+        local problem = family_problem(fonts.body)
+        if problem then
+            problems[#problems + 1] = "body font " .. problem
         else
-            local problem = field_problem(field, value)
+            theme.body.family = fonts.body
+            -- Quotes and epigraphs read in the body face.
+            theme.roles.quote.family = fonts.body
+        end
+    end
+
+    if fonts.heading ~= nil then
+        local problem = family_problem(fonts.heading)
+        if problem then
+            problems[#problems + 1] = "heading font " .. problem
+        else
+            for _, role in ipairs(HEADING_ROLES) do
+                theme.roles[role].family = fonts.heading
+            end
+        end
+    end
+
+    return theme, problems
+end
+
+-- The settings table to persist: only the two choices, never the derived
+-- sizes and weights, so the stored shape stays small and readable.
+function Theme.settings(theme)
+    local fonts = Theme.fonts(theme)
+    return {body_font = fonts.body, heading_font = fonts.heading}
+end
+
+-- Older builds stored a full role table. Read the body face and any heading
+-- face that differs from the default so an existing customisation survives the
+-- simplification; sizes, weights and the rest are intentionally dropped.
+local function load_legacy(stored, theme, problems)
+    if type(stored.body) == "table" and stored.body.family ~= nil then
+        local problem = family_problem(stored.body.family)
+        if problem then
+            problems[#problems + 1] = "body.family " .. problem
+        else
+            theme.body.family = stored.body.family
+            theme.roles.quote.family = stored.body.family
+        end
+    end
+    if type(stored.roles) ~= "table" then return end
+    for _, role in ipairs(HEADING_ROLES) do
+        local values = stored.roles[role]
+        if type(values) == "table" and values.family ~= nil
+            and values.family ~= Theme.DEFAULT_FONTS.heading then
+            local problem = family_problem(values.family)
             if problem then
-                problems[#problems + 1] = path .. "." .. field .. " " .. problem
+                problems[#problems + 1] = "roles." .. role .. ".family " .. problem
             else
-                target[field] = value
+                for _, target in ipairs(HEADING_ROLES) do
+                    theme.roles[target].family = values.family
+                end
             end
         end
     end
 end
 
--- Merge a stored settings table over the defaults. Every invalid leaf is
--- reported and replaced by its default, so the returned theme is always safe
--- to generate CSS from. Never throws.
+-- Merge stored settings over the defaults. Every invalid value is reported and
+-- replaced by its default, so the returned theme is always safe to generate
+-- CSS from. Never throws.
 function Theme.load(stored)
+    if stored == nil then return Theme.defaults(), {} end
+    if type(stored) ~= "table" then
+        return Theme.defaults(), {"stored theme must be a table"}
+    end
+
+    if stored.body_font ~= nil or stored.heading_font ~= nil then
+        local problems = {}
+        local keys = {}
+        for key in pairs(stored) do keys[#keys + 1] = key end
+        table.sort(keys)
+        for _, key in ipairs(keys) do
+            if not FONT_FIELDS[key] then
+                problems[#problems + 1] = "unknown theme field '" .. tostring(key) .. "'"
+            end
+        end
+        local theme, font_problems = Theme.from_fonts({
+            body = stored.body_font,
+            heading = stored.heading_font,
+        })
+        for _, problem in ipairs(font_problems) do
+            problems[#problems + 1] = problem
+        end
+        return theme, problems
+    end
+
     local theme = Theme.defaults()
     local problems = {}
-    if stored == nil then return theme, problems end
-    if type(stored) ~= "table" then
-        return theme, {"stored theme must be a table"}
-    end
-
-    local keys = {}
-    for key in pairs(stored) do keys[#keys + 1] = key end
-    table.sort(keys)
-    for _, key in ipairs(keys) do
-        if not TOP_FIELDS[key] then
-            problems[#problems + 1] = "unknown theme field '" .. tostring(key) .. "'"
-        end
-    end
-
-    local version = stored.version
-    if version ~= nil then
-        if type(version) == "number" and version >= 1 and version % 1 == 0 then
-            theme.version = version
-        else
-            problems[#problems + 1] = "version must be a positive integer"
-        end
-    end
-    if stored.toc_hints ~= nil then
-        if type(stored.toc_hints) == "boolean" then
-            theme.toc_hints = stored.toc_hints
-        else
-            problems[#problems + 1] = "toc_hints must be true or false"
-        end
-    end
-    if stored.body ~= nil then
-        if type(stored.body) == "table" then
-            merge_role(theme.body, stored.body, "body", "body", problems)
-        else
-            problems[#problems + 1] = "body must be a table"
-        end
-    end
-    if stored.roles ~= nil then
-        if type(stored.roles) == "table" then
-            for role in pairs(stored.roles) do
-                if role == "body" or not ROLE_FIELDS[role] then
-                    problems[#problems + 1] = "unknown role '" .. tostring(role) .. "'"
-                end
-            end
-            for _, role in ipairs(ROLE_ORDER) do
-                local values = stored.roles[role]
-                if values ~= nil then
-                    if type(values) == "table" then
-                        merge_role(theme.roles[role], values, "roles." .. role, role, problems)
-                    else
-                        problems[#problems + 1] = "roles." .. role .. " must be a table"
-                    end
-                end
-            end
-        else
-            problems[#problems + 1] = "roles must be a table"
-        end
-    end
+    load_legacy(stored, theme, problems)
     return theme, problems
 end
 
@@ -356,76 +385,6 @@ function Theme.role_for_level(level)
     level = math.floor(level)
     if level < 1 then level = 1 elseif level > 6 then level = 6 end
     return LEVEL_ROLES[level]
-end
-
--- Body is edited through the same call as a heading role, but it lives at the
--- top level of the theme rather than under `roles`.
-local function role_path(role)
-    return role == "body" and "body" or ("roles." .. role)
-end
-
--- Return a new validated theme with one role field changed, or nil and a
--- problem list when the role, field or value is not allowed. This is the only
--- write path for the UI; it never mutates the theme it was given.
-function Theme.set_role(theme, role, field, value)
-    local fields = ROLE_FIELDS[role]
-    if not fields then
-        return nil, {"unknown role '" .. tostring(role) .. "'"}
-    end
-    if not fields[field] then
-        return nil, {"unknown field '" .. role_path(role) .. "." .. tostring(field) .. "'"}
-    end
-    local problem = field_problem(field, value)
-    if problem then
-        return nil, {role_path(role) .. "." .. field .. " " .. problem}
-    end
-    local result = Theme.load(theme)
-    if role == "body" then
-        result.body[field] = value
-    else
-        result.roles[role][field] = value
-    end
-    return result
-end
-
--- Ordered as the menu presents them; body is edited separately.
-Theme.ROLE_ORDER = ROLE_ORDER
-
--- Plain English labels, deliberately without gettext: this module has no
--- KOReader dependency. main.lua passes them through `_()` when displaying.
-Theme.ROLE_LABELS = {
-    body = "Body",
-    part = "Part heading",
-    chapter = "Chapter heading",
-    section = "Section heading",
-    minor = "Minor heading",
-    quote = "Quote / epigraph",
-}
-
--- One-line summary of a role for the status screen. Optional fields are only
--- mentioned when they differ from the generator's defaults, so a default theme
--- stays short and the output is stable for tests.
-function Theme.describe(theme, role)
-    if type(theme) ~= "table" then return "" end
-    if role == "body" then
-        local body = theme.body
-        if type(body) ~= "table" then return "" end
-        return tostring(body.family or "?") .. ", " .. tostring(body.weight or "?")
-    end
-    if not ROLE_FIELDS[role] then return "" end
-    local values = type(theme.roles) == "table" and theme.roles[role] or nil
-    if type(values) ~= "table" then return "" end
-    local parts = {
-        tostring(values.family or "?"),
-        tostring(values.weight or "?"),
-    }
-    if values.size then parts[#parts + 1] = values.size end
-    if values.style and (role == "quote" or values.style ~= "normal") then
-        parts[#parts + 1] = values.style
-    end
-    if values.case == "upper" then parts[#parts + 1] = "uppercase" end
-    if values.align == "center" then parts[#parts + 1] = "centered" end
-    return table.concat(parts, ", ")
 end
 
 return Theme

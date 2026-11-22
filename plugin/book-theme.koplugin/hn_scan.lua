@@ -124,6 +124,7 @@ function Scan.scan(reader, options)
         settings.front_matter = front_matter
 
         local candidates, selector_totals = {}, {}
+        local markers = {}
         for _, path in ipairs(documents) do
             if front_matter[path] then
                 result.stats.front_matter_documents =
@@ -133,6 +134,14 @@ function Scan.scan(reader, options)
             if html then
                 local parsed, doc = pcall(Html.parse, html)
                 if parsed then
+                    -- A heading that opens with a bare, glued chapter number
+                    -- needs a break even when the publisher CSS is off.
+                    for _, element in ipairs(doc.elements) do
+                        local token = Classify.heading_marker(element)
+                        if token then
+                            markers[element.tag .. " ." .. token] = true
+                        end
+                    end
                     local classified, found, totals = pcall(Classify.classify_file,
                         path, doc, rules, toc, settings)
                     if classified then
@@ -174,6 +183,14 @@ function Scan.scan(reader, options)
         end
 
         result.candidates = merged
+        -- Sorted so the generated stylesheet stays byte-identical between scans.
+        local marker_list = {}
+        for selector in pairs(markers) do
+            marker_list[#marker_list + 1] = selector
+        end
+        table.sort(marker_list)
+        result.stats.heading_markers = #marker_list
+        settings.markers = marker_list
         -- The base stylesheet (body, real headings, quote type) applies even
         -- when no pseudo-heading was found, so CSS is never nil for a book we
         -- could read.

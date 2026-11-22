@@ -116,7 +116,7 @@ Do not edit the plugin. Do not touch the device.
 
 ### B. Theme model and CSS generator
 
-- Role model: Body, Part, Chapter, Section, Minor heading, Quote/epigraph.
+- Role model (internal, not exposed in the UI): Body, Part, Chapter, Section, Minor heading, Quote/epigraph.
 - Deterministic CSS:
   - explicit body family and weight
   - `*, *::before, *::after { font-family: inherit !important; }`
@@ -131,10 +131,10 @@ Do not edit the plugin. Do not touch the device.
 
 ### C. Theme UI
 
-- Font chooser for each role (installed fonts), weight, relative size, case, alignment.
+- **Superseded 2026-11-21 by owner feedback:** one font picker for the body face and one for the heading face. Sizes, weights, case, alignment and spacing are fixed defaults; there is no per-role editor. Settings store only `{body_font, heading_font}`.
 - Body face write-through to KOReader's font setting; theme remains authoritative.
 - “Prepare KOReader settings” sets Font Weight to 0; do not touch contrast/size/spacing/margins.
-- Menu under Tools, with status, role editor, per-book use toggle, detected headings, view/copy CSS, export as style tweak.
+- Menu under Tools: Body font, Heading font, Restore default theme, per-book use toggle, and Diagnostics (status, detected headings, view/copy CSS, export as style tweak, Prepare KOReader settings, re-scan).
 - Pure settings-model tests; device smoke test for menu rendering.
 - Commit.
 

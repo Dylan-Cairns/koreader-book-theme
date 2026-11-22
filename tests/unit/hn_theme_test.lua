@@ -29,6 +29,14 @@ function TestTheme:testDefaultsMatchTheSpec()
     luaunit.assertEquals(#Theme.validate(theme), 0)
 end
 
+function TestTheme:testDefaultFontsAreTheTwoChoices()
+    luaunit.assertEquals(Theme.DEFAULT_FONTS.body, "EB Garamond")
+    luaunit.assertEquals(Theme.DEFAULT_FONTS.heading, "Alegreya Sans")
+    local fonts = Theme.fonts(Theme.defaults())
+    luaunit.assertEquals(fonts.body, "EB Garamond")
+    luaunit.assertEquals(fonts.heading, "Alegreya Sans")
+end
+
 function TestTheme:testDefaultsAreFreshTables()
     local first = Theme.defaults()
     first.roles.chapter.family = "Literata"
@@ -38,19 +46,57 @@ function TestTheme:testDefaultsAreFreshTables()
     luaunit.assertEquals(second.body.family, "EB Garamond")
 end
 
-function TestTheme:testLoadDeepMergesStoredFields()
-    local theme, problems = Theme.load({
-        body = {family = "Literata"},
-        roles = {chapter = {size = "1.20rem"}},
-        toc_hints = false,
-    })
+function TestTheme:testFromFontsChangesWholeRoles()
+    local theme, problems = Theme.from_fonts({body = "Literata", heading = "FreeSans"})
     luaunit.assertEquals(#problems, 0)
     luaunit.assertEquals(theme.body.family, "Literata")
-    luaunit.assertEquals(theme.body.weight, "normal")
-    luaunit.assertEquals(theme.roles.chapter.size, "1.20rem")
-    luaunit.assertEquals(theme.roles.chapter.family, "Alegreya Sans")
+    -- Quotes read in the body face.
+    luaunit.assertEquals(theme.roles.quote.family, "Literata")
+    -- One heading choice reaches every heading level, not just one.
+    for _, role in ipairs({"part", "chapter", "section", "minor"}) do
+        luaunit.assertEquals(theme.roles[role].family, "FreeSans", role)
+    end
+    -- Sizes and weights stay on their defaults.
+    luaunit.assertEquals(theme.roles.chapter.size, "1.30rem")
+    luaunit.assertEquals(theme.roles.chapter.weight, "bold")
     luaunit.assertEquals(theme.roles.minor.case, "upper")
-    luaunit.assertFalse(theme.toc_hints)
+    luaunit.assertEquals(#Theme.validate(theme), 0)
+end
+
+function TestTheme:testFromFontsKeepsDefaultsForMissingFamilies()
+    local theme = Theme.from_fonts({body = "Literata"})
+    luaunit.assertEquals(theme.body.family, "Literata")
+    luaunit.assertEquals(theme.roles.chapter.family, "Alegreya Sans")
+    luaunit.assertEquals(theme.roles.quote.family, "Literata")
+end
+
+function TestTheme:testFromFontsRejectsInvalidFamily()
+    local theme, problems = Theme.from_fonts({body = 'Bad "Font"; {x}'})
+    luaunit.assertEquals(theme.body.family, "EB Garamond")
+    luaunit.assertNotNil(problem_for(problems, "body font"))
+
+    theme, problems = Theme.from_fonts({heading = string.rep("A", 65)})
+    luaunit.assertEquals(theme.roles.chapter.family, "Alegreya Sans")
+    luaunit.assertNotNil(problem_for(problems, "heading font"))
+end
+
+function TestTheme:testSettingsStoresOnlyTheTwoFonts()
+    local theme = Theme.from_fonts({body = "Literata", heading = "FreeSans"})
+    local settings = Theme.settings(theme)
+    luaunit.assertEquals(settings.body_font, "Literata")
+    luaunit.assertEquals(settings.heading_font, "FreeSans")
+    luaunit.assertEquals(settings.body, nil)
+    luaunit.assertEquals(settings.roles, nil)
+end
+
+function TestTheme:testLoadFontShapeRoundTrips()
+    local theme, problems = Theme.load({body_font = "Literata", heading_font = "FreeSans"})
+    luaunit.assertEquals(#problems, 0)
+    luaunit.assertEquals(theme.body.family, "Literata")
+    luaunit.assertEquals(theme.roles.chapter.family, "FreeSans")
+    local settings = Theme.settings(theme)
+    luaunit.assertEquals(settings.body_font, "Literata")
+    luaunit.assertEquals(settings.heading_font, "FreeSans")
 end
 
 function TestTheme:testLoadWithoutStoredTheme()
@@ -67,53 +113,54 @@ function TestTheme:testLoadRejectsNonTable()
     luaunit.assertEquals(#problems, 1)
 end
 
-function TestTheme:testInvalidFamilyFallsBackWithProblem()
-    local theme, problems = Theme.load({roles = {part = {family = 'Bad "Font"; {x}'}}})
-    luaunit.assertEquals(theme.roles.part.family, "Alegreya Sans")
-    luaunit.assertNotNil(problem_for(problems, "roles.part.family"))
+function TestTheme:testLoadRejectsUnknownSettingsField()
+    local theme, problems = Theme.load({body_font = "Literata", weights = {bold = true}})
+    luaunit.assertEquals(theme.body.family, "Literata")
+    luaunit.assertNotNil(problem_for(problems, "unknown theme field 'weights'"))
 end
 
-function TestTheme:testFamilyLengthIsCapped()
-    local theme, problems = Theme.load({body = {family = string.rep("A", 65)}})
-    luaunit.assertEquals(theme.body.family, "EB Garamond")
-    luaunit.assertNotNil(problem_for(problems, "body.family"))
+function TestTheme:testLoadInvalidFontFallsBack()
+    local theme, problems = Theme.load({heading_font = "Bad;Font"})
+    luaunit.assertEquals(theme.roles.chapter.family, "Alegreya Sans")
+    luaunit.assertNotNil(problem_for(problems, "heading font"))
 end
 
-function TestTheme:testInvalidSizeFallsBackWithProblem()
-    local theme, problems = Theme.load({roles = {chapter = {size = "2.9rem"}}})
-    luaunit.assertEquals(theme.roles.chapter.size, "1.30rem")
-    luaunit.assertNotNil(problem_for(problems, "roles.chapter.size"))
-
-    theme, problems = Theme.load({roles = {chapter = {size = "large"}}})
-    luaunit.assertEquals(theme.roles.chapter.size, "1.30rem")
-    luaunit.assertNotNil(problem_for(problems, "roles.chapter.size"))
-end
-
-function TestTheme:testInvalidWeightFallsBackWithProblem()
-    local theme, problems = Theme.load({body = {weight = "500"}})
-    luaunit.assertEquals(theme.body.weight, "normal")
-    luaunit.assertNotNil(problem_for(problems, "body.weight"))
-
-    theme, problems = Theme.load({roles = {minor = {weight = "900"}}})
-    luaunit.assertEquals(theme.roles.minor.weight, "bold")
-    luaunit.assertNotNil(problem_for(problems, "roles.minor.weight"))
-end
-
-function TestTheme:testUnknownRoleAndFieldRejected()
+function TestTheme:testLoadMigratesLegacyRoleTable()
+    -- Builds before the simplification stored a resolved role table.
     local theme, problems = Theme.load({
-        roles = {epilogue = {family = "Literata"}},
-        body = {colour = "red"},
+        body = {family = "Literata", weight = "bold"},
+        roles = {
+            part = {family = "Alegreya Sans"},
+            chapter = {family = "Alegreya Sans"},
+            section = {family = "FreeSans", size = "1.20rem"},
+            minor = {family = "Alegreya Sans", case = "upper"},
+            quote = {family = "Literata", style = "italic"},
+        },
     })
-    luaunit.assertEquals(theme.body.family, "EB Garamond")
-    luaunit.assertNil(theme.roles.epilogue)
-    luaunit.assertNotNil(problem_for(problems, "unknown role 'epilogue'"))
-    luaunit.assertNotNil(problem_for(problems, "unknown field 'body.colour'"))
+    luaunit.assertEquals(#problems, 0)
+    luaunit.assertEquals(theme.body.family, "Literata")
+    -- The one genuinely customised heading face is kept.
+    luaunit.assertEquals(theme.roles.chapter.family, "FreeSans")
+    luaunit.assertEquals(theme.roles.section.family, "FreeSans")
+    luaunit.assertEquals(theme.roles.quote.family, "Literata")
+    -- Derived values do not migrate; they come from the defaults.
+    luaunit.assertEquals(theme.roles.section.size, "1.15rem")
+    luaunit.assertEquals(theme.roles.minor.case, "upper")
 end
 
-function TestTheme:testQuoteRejectsHeadingFields()
-    local theme, problems = Theme.load({roles = {quote = {size = "1.1rem"}}})
-    luaunit.assertNil(theme.roles.quote.size)
-    luaunit.assertNotNil(problem_for(problems, "roles.quote.size"))
+function TestTheme:testLoadLegacyDefaultsProduceTheDefaultSettings()
+    local theme, problems = Theme.load({
+        body = {family = "EB Garamond", weight = "normal"},
+        roles = {chapter = {family = "Alegreya Sans"}, section = {family = "Alegreya Sans"}},
+    })
+    luaunit.assertEquals(#problems, 0)
+    luaunit.assertEquals(Theme.hash(theme), Theme.hash(Theme.defaults()))
+end
+
+function TestTheme:testLoadLegacyInvalidFamilyFallsBack()
+    local theme, problems = Theme.load({roles = {chapter = {family = 'Bad "Font"'}}})
+    luaunit.assertEquals(theme.roles.chapter.family, "Alegreya Sans")
+    luaunit.assertNotNil(problem_for(problems, "roles.chapter.family"))
 end
 
 function TestTheme:testValidateReportsStructuralProblems()
@@ -144,30 +191,16 @@ function TestTheme:testHashIsStable()
 end
 
 function TestTheme:testHashIsKeyOrderIndependent()
-    local first = Theme.load({body = {family = "Literata", weight = "bold"}})
-    local second = Theme.load({body = {weight = "bold", family = "Literata"}})
+    local first = Theme.load({body_font = "Literata", heading_font = "FreeSans"})
+    local second = Theme.load({heading_font = "FreeSans", body_font = "Literata"})
     luaunit.assertEquals(Theme.canonical(first), Theme.canonical(second))
     luaunit.assertEquals(Theme.hash(first), Theme.hash(second))
 end
 
-function TestTheme:testHashChangesWithMeaningfulFields()
+function TestTheme:testHashChangesWithEitherFont()
     local base = Theme.hash(Theme.defaults())
-    local theme = Theme.defaults()
-    theme.body.family = "Literata"
-    luaunit.assertNotEquals(Theme.hash(theme), base)
-
-    theme = Theme.defaults()
-    theme.roles.chapter.family = "Literata"
-    luaunit.assertNotEquals(Theme.hash(theme), base)
-
-    theme = Theme.defaults()
-    theme.roles.minor.case = "none"
-    luaunit.assertNotEquals(Theme.hash(theme), base)
-end
-
-function TestTheme:testExplicitNormalStyleMatchesAbsentStyle()
-    local explicit = Theme.load({roles = {part = {style = "normal"}}})
-    luaunit.assertEquals(Theme.hash(explicit), Theme.hash(Theme.defaults()))
+    luaunit.assertNotEquals(Theme.hash(Theme.from_fonts({body = "Literata"})), base)
+    luaunit.assertNotEquals(Theme.hash(Theme.from_fonts({heading = "Literata"})), base)
 end
 
 function TestTheme:testRoleForLevel()
@@ -182,132 +215,13 @@ function TestTheme:testRoleForLevel()
     luaunit.assertEquals(Theme.role_for_level(9), "minor")
 end
 
-function TestTheme:testSetRoleReturnsNewTheme()
-    local original = Theme.defaults()
-    local changed = Theme.set_role(original, "chapter", "family", "Literata")
-    luaunit.assertNotNil(changed)
-    luaunit.assertEquals(changed.roles.chapter.family, "Literata")
-    luaunit.assertEquals(original.roles.chapter.family, "Alegreya Sans")
-    luaunit.assertNotEquals(Theme.hash(changed), Theme.hash(original))
-end
-
-function TestTheme:testSetRoleValidates()
-    local theme = Theme.defaults()
-    local changed, problems = Theme.set_role(theme, "chapter", "size", "3rem")
-    luaunit.assertNil(changed)
-    luaunit.assertNotNil(problem_for(problems, "roles.chapter.size"))
-
-    changed, problems = Theme.set_role(theme, "chapter", "colour", "red")
-    luaunit.assertNil(changed)
-    luaunit.assertNotNil(problem_for(problems, "unknown field"))
-
-    changed, problems = Theme.set_role(theme, "epilogue", "family", "Literata")
-    luaunit.assertNil(changed)
-    luaunit.assertNotNil(problem_for(problems, "unknown role"))
-end
-
-function TestTheme:testSetRoleCanClearSpacing()
-    local cleared = Theme.set_role(Theme.defaults(), "minor", "spacing", nil)
-    luaunit.assertNotNil(cleared)
-    luaunit.assertNil(cleared.roles.minor.spacing)
-end
-
-function TestTheme:testSetRoleBodyFields()
-    local original = Theme.defaults()
-    local changed = Theme.set_role(original, "body", "family", "Literata")
-    luaunit.assertNotNil(changed)
-    luaunit.assertEquals(changed.body.family, "Literata")
-    luaunit.assertEquals(changed.body.weight, "normal")
-    luaunit.assertEquals(changed.roles.part.family, "Alegreya Sans")
-    luaunit.assertEquals(original.body.family, "EB Garamond")
-    luaunit.assertNotEquals(Theme.hash(changed), Theme.hash(Theme.defaults()))
-
-    changed = Theme.set_role(Theme.defaults(), "body", "weight", "bold")
-    luaunit.assertNotNil(changed)
-    luaunit.assertEquals(changed.body.weight, "bold")
-    luaunit.assertEquals(changed.body.family, "EB Garamond")
-end
-
-function TestTheme:testSetRoleRejectsInvalidBodyValues()
-    local changed, problems = Theme.set_role(Theme.defaults(), "body", "family", 'Bad "Font"')
-    luaunit.assertNil(changed)
-    luaunit.assertNotNil(problem_for(problems, "body.family"))
-
-    changed, problems = Theme.set_role(Theme.defaults(), "body", "size", "1.20rem")
-    luaunit.assertNil(changed)
-    luaunit.assertNotNil(problem_for(problems, "unknown field 'body.size'"))
-
-    changed, problems = Theme.set_role(Theme.defaults(), "body", "weight", "900")
-    luaunit.assertNil(changed)
-    luaunit.assertNotNil(problem_for(problems, "body.weight"))
-end
-
-function TestTheme:testSetRoleAcceptsEveryRoleField()
-    local values = {
-        family = "Literata",
-        weight = "bold",
-        style = "italic",
-        size = "1.20rem",
-        case = "upper",
-        align = "center",
-        spacing = "0.10em",
-    }
-    local fields_by_role = {
-        body = {"family", "weight"},
-        part = {"family", "weight", "style", "size", "case", "align", "spacing"},
-        chapter = {"family", "weight", "style", "size", "case", "align", "spacing"},
-        section = {"family", "weight", "style", "size", "case", "align", "spacing"},
-        minor = {"family", "weight", "style", "size", "case", "align", "spacing"},
-        quote = {"family", "weight", "style"},
-    }
-    for role, fields in pairs(fields_by_role) do
-        for _, field in ipairs(fields) do
-            local changed = Theme.set_role(Theme.defaults(), role, field, values[field])
-            luaunit.assertNotNil(changed, role .. "." .. field .. " was rejected")
-            luaunit.assertEquals(#Theme.validate(changed), 0, role .. "." .. field)
-            local updated = role == "body" and changed.body or changed.roles[role]
-            luaunit.assertEquals(updated[field], values[field], role .. "." .. field)
-        end
-    end
-end
-
-function TestTheme:testRoleOrderAndLabels()
-    luaunit.assertEquals(Theme.ROLE_ORDER, {"part", "chapter", "section", "minor", "quote"})
-    luaunit.assertEquals(Theme.ROLE_LABELS.body, "Body")
-    for _, role in ipairs(Theme.ROLE_ORDER) do
-        local label = Theme.ROLE_LABELS[role]
-        luaunit.assertEquals(type(label), "string")
-        luaunit.assertNotEquals(label, "")
-        luaunit.assertNotNil(Theme.ROLE_LABELS[role], role)
-    end
-    luaunit.assertEquals(Theme.ROLE_LABELS.part, "Part heading")
-    luaunit.assertEquals(Theme.ROLE_LABELS.quote, "Quote / epigraph")
-end
-
-function TestTheme:testDescribeDefaults()
-    local theme = Theme.defaults()
-    luaunit.assertEquals(Theme.describe(theme, "body"), "EB Garamond, normal")
-    luaunit.assertEquals(Theme.describe(theme, "part"), "Alegreya Sans, bold, 1.45rem")
-    luaunit.assertEquals(Theme.describe(theme, "chapter"), "Alegreya Sans, bold, 1.30rem")
-    luaunit.assertEquals(Theme.describe(theme, "section"), "Alegreya Sans, bold, 1.15rem")
-    luaunit.assertEquals(Theme.describe(theme, "minor"),
-        "Alegreya Sans, bold, 0.95rem, uppercase")
-    luaunit.assertEquals(Theme.describe(theme, "quote"), "EB Garamond, normal, italic")
-end
-
-function TestTheme:testDescribeFollowsChanges()
-    local theme = Theme.set_role(Theme.defaults(), "chapter", "align", "center")
-    theme = Theme.set_role(theme, "chapter", "style", "italic")
-    theme = Theme.set_role(theme, "body", "weight", "bold")
-    luaunit.assertEquals(Theme.describe(theme, "chapter"),
-        "Alegreya Sans, bold, 1.30rem, italic, centered")
-    luaunit.assertEquals(Theme.describe(theme, "body"), "EB Garamond, bold")
-end
-
-function TestTheme:testDescribeRejectsUnknownInput()
-    luaunit.assertEquals(Theme.describe(Theme.defaults(), "epilogue"), "")
-    luaunit.assertEquals(Theme.describe(nil, "body"), "")
-    luaunit.assertEquals(Theme.describe({body = "x"}, "body"), "")
+function TestTheme:testFontsToleratesMissingShape()
+    local fonts = Theme.fonts(nil)
+    luaunit.assertEquals(fonts.body, "EB Garamond")
+    luaunit.assertEquals(fonts.heading, "Alegreya Sans")
+    fonts = Theme.fonts({body = {family = "Literata"}})
+    luaunit.assertEquals(fonts.body, "Literata")
+    luaunit.assertEquals(fonts.heading, nil)
 end
 
 return TestTheme

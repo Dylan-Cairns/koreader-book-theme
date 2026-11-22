@@ -28,15 +28,14 @@ Upgrading from Heading Normaliser: deploy with `tools/Device.ps1 Deploy`, which 
 
 ## Menu
 
+- **Body font** — pick the reading face. Quotes and epigraphs follow it.
+- **Heading font** — one face for every heading level.
+- **Restore default theme**
 - **Enable for all books**
 - **Disable for this book**
-- **Theme** — one editor per role: Body (font, weight), Part/Chapter/Section/Minor heading (font, weight, size, case, alignment) and Quote/epigraph (font, weight, style). **Restore default theme** is at the end.
-- **Prepare KOReader settings** — sets KOReader's Font Weight to 0 because the theme owns weight; size, spacing, margins and contrast are left alone. Contrast has to stay in KOReader because CSS cannot scope gamma.
-- **Status and detected headings** — the current theme summary followed by the scan report (level, selector, confidence)
-- **View generated CSS**
-- **Copy generated CSS**
-- **Export generated CSS as style tweak** — writes `koreader/styletweaks/book-theme.css`
-- **Re-scan this book on next open**
+- **Diagnostics** — Status and detected headings, View/Copy/Export generated CSS, Prepare KOReader settings, Re-scan this book on next open.
+
+Everything except the two face choices is a fixed default: heading sizes 1.45/1.30/1.15/0.95 rem, bold headings, uppercase minor headings, left alignment, italic quotes. There is no per-level editor, so no combination of menu choices can produce a stylesheet the renderer cannot use.
 
 ## Limits
 

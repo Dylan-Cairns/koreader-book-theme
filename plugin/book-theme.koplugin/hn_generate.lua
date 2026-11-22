@@ -143,6 +143,17 @@ function Generate.generate(candidates, options)
         "    line-height: inherit !important;",
         "}",
         "",
+        -- Publisher CSS usually carries these; when it is disabled a note
+        -- reference would otherwise render at full body size on the baseline.
+        "sup, sub {",
+        "    font-size: 0.7em !important;",
+        "    line-height: 0 !important;",
+        "}",
+        "",
+        "sup { vertical-align: super !important; }",
+        "",
+        "sub { vertical-align: sub !important; }",
+        "",
         "blockquote {",
     }
     for _, declaration in ipairs(quote_declarations(quote_role)) do
@@ -163,6 +174,20 @@ function Generate.generate(candidates, options)
             descendants[#descendants + 1] = selector .. " *"
         end
         append_rule(lines, descendants, DESCENDANT_RESET)
+    end
+
+    -- A leading chapter number that the publisher separates only through its
+    -- own stylesheet (".chapter-number { display: block }"). With publisher CSS
+    -- off the number is welded to the title, so give that one class a block
+    -- line. Scoped to the marker class; body text can never match.
+    local markers = options.markers or {}
+    if #markers > 0 then
+        append_rule(lines, unique_sorted(markers), {
+            "    display: block !important;",
+            "    font-size: 0.75em !important;",
+            "    letter-spacing: 0.1em !important;",
+            "    margin: 0 0 0.3em 0 !important;",
+        })
     end
 
     -- Detected pseudo-headings share the role declarations; only they get a

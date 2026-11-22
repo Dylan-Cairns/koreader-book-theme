@@ -6,7 +6,6 @@ local DataStorage = require("datastorage")
 local Device = require("device")
 local InfoMessage = require("ui/widget/infomessage")
 local Notification = require("ui/widget/notification")
-local SpinWidget = require("ui/widget/spinwidget")
 local TextViewer = require("ui/widget/textviewer")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
@@ -21,9 +20,11 @@ local Cache = require("hn_cache")
 
 -- Cache format version. Version 2 adds the theme hash: a cache written under
 -- the old product name (version 1) has no hash, so it is rescanned once.
--- Version 3 changes detection (semantic kind gate, ToC shape check, quotes),
--- so every cached stylesheet is rebuilt once.
-local VERSION = 3
+-- Version 3 changes detection (semantic kind gate, ToC shape check, quotes).
+-- Version 4 adds the glued chapter-number rules and sup/sub defaults, and the
+-- theme settings shrink to two fonts, so every cached stylesheet is rebuilt
+-- once.
+local VERSION = 4
 
 -- Saves always write the current key. The legacy heading_normalizer* keys are
 -- read only as a fallback, so an existing device state survives the rename. A
@@ -265,6 +266,10 @@ function BookTheme:formatReport()
         _("Documents: %d   Stylesheets: %d   ToC entries: %d   Pseudo-headings: %d"),
         stats.documents or 0, stats.stylesheets or 0,
         stats.toc_entries or 0, stats.pseudo_headings or 0)
+    if (stats.heading_markers or 0) > 0 then
+        lines[#lines + 1] = string.format(_("Glued chapter numbers: %d"),
+            stats.heading_markers)
+    end
     for _, candidate in ipairs(report.candidates or {}) do
         lines[#lines + 1] = string.format("L%d  %s  (%d)  %s",
             candidate.level or 0, candidate.selector or "?",
@@ -295,44 +300,8 @@ function BookTheme:showReport(title, text)
     })
 end
 
--- Menu choices. Labels are plain English for the same reason as the role
--- labels in hn_theme: the table is data, `_()` is applied when it is shown.
-local CHOICES = {
-    weight = {
-        order = {"normal", "bold"},
-        labels = {normal = "Normal", bold = "Bold"},
-    },
-    style = {
-        order = {"normal", "italic"},
-        labels = {normal = "Normal", italic = "Italic"},
-    },
-    case = {
-        order = {"none", "upper"},
-        labels = {none = "Normal case", upper = "Uppercase"},
-    },
-    align = {
-        order = {"left", "center"},
-        labels = {left = "Left", center = "Center"},
-    },
-}
-
-local function role_text(role)
-    return _(Theme.ROLE_LABELS[role] or role)
-end
-
 local function show_info(text)
     UIManager:show(InfoMessage:new{text = text})
-end
-
-local function size_to_spin(size)
-    local number = tonumber(tostring(size or ""):match("^(%d+%.%d+)rem$"))
-    if not number then number = 1.30 end
-    return math.floor(number * 100 + 0.5)
-end
-
-function BookTheme:roleValues(role)
-    if role == "body" then return self.theme.body end
-    return self.theme.roles[role]
 end
 
 -- The theme is authoritative for body type; this only keeps the font shown in
@@ -352,22 +321,24 @@ function BookTheme:syncBodyFont(family)
     end
 end
 
--- One write path for every theme edit. The validation lives in hn_theme, so a
--- value the generator cannot render is rejected before it reaches the cache.
--- `generated_css` is deliberately not cleared: the hash changed, so the open
--- book's cache is rejected on the next open, and clearing it here could drop
--- styling mid-session on the next stylesheet rebuild.
-function BookTheme:setRole(role, field, value)
-    local changed, problems = Theme.set_role(self.theme, role, field, value)
-    if not changed then
+-- The single write path for a font choice. The settings table stores only the
+-- two families, never the derived sizes and weights. `generated_css` is
+-- deliberately not cleared: the hash changed, so the open book's cache is
+-- rejected on the next open, and clearing it here could drop styling
+-- mid-session on the next stylesheet rebuild.
+function BookTheme:setFont(which, family)
+    local fonts = Theme.fonts(self.theme)
+    fonts[which] = family
+    local changed, problems = Theme.from_fonts(fonts)
+    if not changed or #problems > 0 then
         show_info(_("The theme was not changed: ") .. table.concat(problems or {}, "; "))
         return false
     end
-    G_reader_settings:saveSetting(KEY.settings, changed)
+    G_reader_settings:saveSetting(KEY.settings, Theme.settings(changed))
     self:loadTheme()
     local message = _("Takes effect the next time this book is opened.")
-    if role == "body" and field == "family" then
-        self:syncBodyFont(value)
+    if which == "body" then
+        self:syncBodyFont(family)
         message = _("The Aa menu font now matches.") .. "\n" .. message
     end
     show_info(message)
@@ -396,13 +367,16 @@ function BookTheme:installedFonts()
     return result
 end
 
-function BookTheme:fontMenuItems(role)
+-- One picker per font role. The list is rebuilt from KOReader's installed
+-- faces each time it opens, so a font added since start appears without a
+-- restart.
+function BookTheme:fontItems(which)
     local items = {}
     for _, face in ipairs(self:installedFonts()) do
         items[#items + 1] = {
             text = face,
-            checked_func = function() return self:roleValues(role).family == face end,
-            callback = function() self:setRole(role, "family", face) end,
+            checked_func = function() return Theme.fonts(self.theme)[which] == face end,
+            callback = function() self:setFont(which, face) end,
         }
     end
     if #items == 0 then
@@ -414,105 +388,13 @@ function BookTheme:fontMenuItems(role)
     return items
 end
 
-function BookTheme:choiceMenuItems(role, field)
-    local choice = CHOICES[field]
-    local items = {}
-    -- `position` rather than `_`: the loop variable would otherwise shadow the
-    -- gettext `_` used for the label below.
-    for position, value in ipairs(choice.order) do
-        items[position] = {
-            text = _(choice.labels[value]),
-            checked_func = function() return self:roleValues(role)[field] == value end,
-            callback = function() self:setRole(role, field, value) end,
-        }
-    end
-    return items
-end
-
--- Sizes are stored in hundredths of a rem so the spinner is integral, then
--- formatted back into the exactly-two-decimals form the theme validates.
-function BookTheme:editSize(role)
-    UIManager:show(SpinWidget:new{
-        title_text = _("Heading size"),
-        info_text = role_text(role),
-        value = size_to_spin(self:roleValues(role).size),
-        value_min = 60,
-        value_max = 250,
-        value_step = 5,
-        unit = "%",
-        callback = function(spin)
-            self:setRole(role, "size", string.format("%.2frem", spin.value / 100))
-        end,
-    })
-end
-
-function BookTheme:roleMenuItems(role)
-    local items = {
-        {
-            text = _("Font"),
-            sub_item_table_func = function() return self:fontMenuItems(role) end,
-        },
-        {
-            text = _("Weight"),
-            sub_item_table = self:choiceMenuItems(role, "weight"),
-        },
-    }
-    if role == "body" then
-        -- The body role has no size, case or alignment: body size belongs to
-        -- KOReader, and adding controls that always fail validation is noise.
-        return items
-    end
-    if role == "quote" then
-        items[#items + 1] = {
-            text = _("Style"),
-            sub_item_table = self:choiceMenuItems(role, "style"),
-        }
-        return items
-    end
-    items[#items + 1] = {
-        text = _("Size"),
-        callback = function() self:editSize(role) end,
-    }
-    items[#items + 1] = {
-        text = _("Case"),
-        sub_item_table = self:choiceMenuItems(role, "case"),
-    }
-    items[#items + 1] = {
-        text = _("Alignment"),
-        sub_item_table = self:choiceMenuItems(role, "align"),
-    }
-    return items
-end
-
-function BookTheme:themeMenuItems()
-    local items = {
-        {
-            text = role_text("body"),
-            sub_item_table_func = function() return self:roleMenuItems("body") end,
-        },
-    }
-    for _, role in ipairs(Theme.ROLE_ORDER) do
-        items[#items + 1] = {
-            text = role_text(role),
-            sub_item_table_func = function() return self:roleMenuItems(role) end,
-        }
-    end
-    items[#items + 1] = {
-        text = _("Restore default theme"),
-        callback = function() self:restoreDefaultTheme() end,
-    }
-    return items
-end
-
 function BookTheme:formatThemeSummary()
-    local lines = {
-        role_text("body") .. ": " .. Theme.describe(self.theme, "body"),
-    }
-    for _, role in ipairs(Theme.ROLE_ORDER) do
-        lines[#lines + 1] = role_text(role) .. ": " .. Theme.describe(self.theme, role)
-    end
-    lines[#lines + 1] = string.format(_("Theme: %s"), tostring(self.theme_hash))
-    return table.concat(lines, "\n")
+    local fonts = Theme.fonts(self.theme)
+    return table.concat({
+        string.format(_("Body font: %s"), tostring(fonts.body)),
+        string.format(_("Heading font: %s"), tostring(fonts.heading)),
+        string.format(_("Theme: %s"), tostring(self.theme_hash)),
+    }, "\n")
 end
 
 function BookTheme:formatStatus()
@@ -605,6 +487,21 @@ function BookTheme:addToMainMenu(menu_items)
         text = _("Book Theme"),
         sorting_hint = "tools",
         sub_item_table = {
+            -- The two decisions a reader actually makes. Everything else about
+            -- the type is a fixed default.
+            {
+                text = _("Body font"),
+                sub_item_table_func = function() return self:fontItems("body") end,
+            },
+            {
+                text = _("Heading font"),
+                sub_item_table_func = function() return self:fontItems("heading") end,
+            },
+            {
+                text = _("Restore default theme"),
+                separator = true,
+                callback = function() self:restoreDefaultTheme() end,
+            },
             {
                 text = _("Enable for all books"),
                 checked_func = function() return self:isEnabled() end,
@@ -616,56 +513,58 @@ function BookTheme:addToMainMenu(menu_items)
                 callback = toggleBook,
             },
             {
-                text = _("Theme"),
-                sub_item_table_func = function() return self:themeMenuItems() end,
-            },
-            {
-                text = _("Prepare KOReader settings"),
-                help_text = _("Sets KOReader's font weight to 0. Size, spacing, margins and contrast are untouched."),
+                text = _("Diagnostics"),
                 separator = true,
-                callback = function() self:prepareReaderSettings() end,
-            },
-            {
-                text = _("Status and detected headings"),
-                callback = function()
-                    self:showReport(_("Book Theme"), self:formatStatus())
-                end,
-            },
-            {
-                text = _("View generated CSS"),
-                callback = function()
-                    self:showReport(_("Generated theme CSS"), self:currentCss())
-                end,
-            },
-            {
-                text = _("Copy generated CSS"),
-                callback = function()
-                    local css = self:currentCss()
-                    if not css then
-                        UIManager:show(InfoMessage:new{text = _("No generated CSS yet.")})
-                    elseif Device:hasClipboard() then
-                        Device:setClipboardText(css)
-                        Notification:notify(_("Theme CSS copied to clipboard."))
-                    else
-                        UIManager:show(InfoMessage:new{text = _("Clipboard not available.")})
-                    end
-                end,
-            },
-            {
-                text = _("Export generated CSS as style tweak"),
-                callback = function() self:exportStyleTweak() end,
-            },
-            {
-                text = _("Re-scan this book on next open"),
-                callback = function()
-                    -- Drop the legacy cache too, or the fallback would serve it again.
-                    self.ui.doc_settings:delSetting(KEY.cache)
-                    self.ui.doc_settings:delSetting(KEY.cache_legacy)
-                    self.generated_css = nil
-                    UIManager:show(InfoMessage:new{
-                        text = _("The next opening of this book will scan it again."),
-                    })
-                end,
+                sub_item_table = {
+                    {
+                        text = _("Status and detected headings"),
+                        callback = function()
+                            self:showReport(_("Book Theme"), self:formatStatus())
+                        end,
+                    },
+                    {
+                        text = _("View generated CSS"),
+                        callback = function()
+                            self:showReport(_("Generated theme CSS"), self:currentCss())
+                        end,
+                    },
+                    {
+                        text = _("Copy generated CSS"),
+                        callback = function()
+                            local css = self:currentCss()
+                            if not css then
+                                UIManager:show(InfoMessage:new{text = _("No generated CSS yet.")})
+                            elseif Device:hasClipboard() then
+                                Device:setClipboardText(css)
+                                Notification:notify(_("Theme CSS copied to clipboard."))
+                            else
+                                UIManager:show(InfoMessage:new{text = _("Clipboard not available.")})
+                            end
+                        end,
+                    },
+                    {
+                        text = _("Export generated CSS as style tweak"),
+                        callback = function() self:exportStyleTweak() end,
+                    },
+                    {
+                        text = _("Prepare KOReader settings"),
+                        help_text = _("Sets KOReader's font weight to 0."
+                            .. " Size, spacing, margins and contrast are untouched."),
+                        callback = function() self:prepareReaderSettings() end,
+                    },
+                    {
+                        text = _("Re-scan this book on next open"),
+                        callback = function()
+                            -- Drop the legacy cache too, or the fallback would serve it again.
+                            self.ui.doc_settings:delSetting(KEY.cache)
+                            self.ui.doc_settings:delSetting(KEY.cache_legacy)
+                            self.generated_css = nil
+                            UIManager:show(InfoMessage:new{
+                                text = _("The next opening of this book will scan it again."),
+                            })
+                        end,
+                    },
+                },
             },
         },
     }
