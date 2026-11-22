@@ -142,7 +142,7 @@ Device Go6 `6C7AE6EA`, KOReader v2026.07.2, 1072x1448. Everything here was seen 
 
 ## Next action
 
-The fourth round is complete and verified on device for *Rethinking Meditation* chapter 8: the section head is centred and every level now has a visible size step. It is a working-tree change in this commit round; nothing has been pushed. The next step is the owner's font curation: they will name families to remove, then the removal is a single `adb shell rm -r /sdcard/koreader/fonts/<family>` per family (after a backup) plus a KOReader restart so the picker rescans. Anything that changes detection or the CSS needs `.\tools\Test.ps1` plus a fresh corpus measurement, and a device deploy only when the change is meant to ship.
+The fourth round is complete and verified on device for *Rethinking Meditation* chapter 8: the section head is centred and every level now has a visible size step. It is committed as `65ae618`; nothing has been pushed. The next step is the owner's font curation: they will name families to remove, then the removal is a single `adb shell rm -r /sdcard/koreader/fonts/<family>` per family (after a backup) plus a KOReader restart so the picker rescans. Anything that changes detection or the CSS needs `.\tools\Test.ps1` plus a fresh corpus measurement, and a device deploy only when the change is meant to ship.
 
 ## Open work
 
