@@ -130,7 +130,7 @@ Device Go6 `6C7AE6EA`, KOReader v2026.07.2, 1072x1448. Everything here was seen 
 
 ## Next action
 
-The third round is complete and verified on device for *Rethinking Meditation* chapter 8 (centred number and title, space below) and for the eight installed heading families. Nothing is committed yet for the third round and nothing has been pushed. The next step is the owner's font curation: they will name families to remove, then the removal is a single `adb shell rm -r /sdcard/koreader/fonts/<family>` per family (after a backup) plus a KOReader restart so the picker rescans. Anything that changes detection or the CSS needs `.\tools\Test.ps1` plus a fresh corpus measurement, and a device deploy only when the change is meant to ship.
+The third round is complete and verified on device for *Rethinking Meditation* chapter 8 (centred number and title, space below) and for the eight installed heading families. It is committed as `ef37319`; nothing has been pushed. The next step is the owner's font curation: they will name families to remove, then the removal is a single `adb shell rm -r /sdcard/koreader/fonts/<family>` per family (after a backup) plus a KOReader restart so the picker rescans. Anything that changes detection or the CSS needs `.\tools\Test.ps1` plus a fresh corpus measurement, and a device deploy only when the change is meant to ship.
 
 ## Open work
 
