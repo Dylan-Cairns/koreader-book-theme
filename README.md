@@ -37,6 +37,8 @@ Upgrading from Heading Normaliser: deploy with `tools/Device.ps1 Deploy`, which 
 
 Everything except the two face choices is a fixed default: heading sizes 1.75/1.50/1.25/1.00 rem, bold headings, every heading level centred, uppercase minor headings, extra space below part/chapter titles, italic quotes. There is no per-level editor, so no combination of menu choices can produce a stylesheet the renderer cannot use.
 
+Changing either face restyles the book you are reading straight away, keeping your place; other books pick the change up when they are next opened.
+
 A chapter number is kept with its title whether the book glues it inline (`19Philosophy`) or sets it as a separate heading above the title: inline gets a word space in the heading's own face, standalone gets a small gap above the title. A publisher's negative margin that pulls the opening paragraph up under the title is cancelled, so the title keeps its breathing room.
 
 ## Limits

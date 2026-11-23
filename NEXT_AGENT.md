@@ -46,7 +46,7 @@ Rules:
 - Body **size** normalisation is out of v1. Do not force `font-size: 1rem` on every `p`; it would enlarge footnotes and small print. Leave body size to KOReader.
 - Do not rewrite EPUBs, cached or in place. Preserve sidecars, progress, highlights and bookmarks.
 - Keep `pre`/`code` monospace. Footnotes inherit family/weight but keep their smaller size and KOReader handling.
-- Cache generated CSS per book with a **theme hash**, so changing a theme font invalidates the cache lazily on the next open.
+- Cache generated CSS per book with a **theme hash**. Store the compact generator inputs with it: a face change rebuilds the open book in place through ReaderTypeset's `ApplyStyleSheet` (owner request, 2026-11-22); other books rebuild on their next open.
 
 ## Current state
 

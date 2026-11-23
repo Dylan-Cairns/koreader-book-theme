@@ -4,6 +4,7 @@
 local Archiver = require("ffi/archiver")
 local DataStorage = require("datastorage")
 local Device = require("device")
+local Event = require("ui/event")
 local InfoMessage = require("ui/widget/infomessage")
 local Notification = require("ui/widget/notification")
 local TextViewer = require("ui/widget/textviewer")
@@ -13,6 +14,7 @@ local lfs = require("libs/libkoreader-lfs")
 local logger = require("logger")
 local _ = require("gettext")
 
+local Generate = require("hn_generate")
 local Scan = require("hn_scan")
 local Settings = require("hn_settings")
 local Theme = require("hn_theme")
@@ -29,8 +31,9 @@ local Cache = require("hn_cache")
 -- shorthand. Version 9 cancels a publisher's negative pull-up on the block
 -- after a chapter title (version 8 existed only as a spacing probe on the test
 -- device and was never committed). Version 10 centres every heading level and
--- widens the size ladder to 1.75/1.50/1.25/1.00 rem.
-local VERSION = 10
+-- widens the size ladder to 1.75/1.50/1.25/1.00 rem. Version 11 stores the
+-- generator inputs, so a font change rebuilds the open book without a reopen.
+local VERSION = 11
 
 -- Saves always write the current key. The legacy heading_normalizer* keys are
 -- read only as a fallback, so an existing device state survives the rename. A
@@ -210,6 +213,20 @@ function BookTheme:applyCss()
         styletweak:getCssText() or "")
 end
 
+-- One write path for the per-book cache, so a rescan and a live theme rebuild
+-- always persist the same fields, including the generator inputs.
+function BookTheme:writeCache(css, report, generation)
+    if not self.ui or not self.ui.doc_settings then return end
+    self.ui.doc_settings:saveSetting(KEY.cache, {
+        version = VERSION,
+        theme_hash = self.theme_hash,
+        css = css or "",
+        report = report,
+        generation = generation,
+        scanned_at = os.time(),
+    })
+end
+
 function BookTheme:onPreRenderDocument(doc_settings)
     self.ui.doc_settings = doc_settings or self.ui.doc_settings
     local ok, err = pcall(function() self:prepareForRender() end)
@@ -233,13 +250,7 @@ function BookTheme:prepareForRender()
         local result = self:scanNow()
         self.report = report_for_storage(result)
         self.generated_css = result and result.css or nil
-        self.ui.doc_settings:saveSetting(KEY.cache, {
-            version = VERSION,
-            theme_hash = self.theme_hash,
-            css = self.generated_css or "",
-            report = self.report,
-            scanned_at = os.time(),
-        })
+        self:writeCache(self.generated_css, self.report, result and result.generation)
         logger.info("book-theme: scanned",
             self.ui.document.file,
             "theme", self.theme_hash,
@@ -249,6 +260,59 @@ function BookTheme:prepareForRender()
     if self.generated_css then
         self:applyCss()
     end
+end
+
+-- Rebuild this book's stylesheet from the stored generator inputs. If a cache
+-- predates the stored inputs (or was just cleared), one scan runs instead. The
+-- CSS is byte-identical to a fresh scan of the same book under this theme.
+function BookTheme:rebuildCss()
+    local cached = self:readCache()
+    local generation = cached and cached.generation
+    if not generation then
+        local result = self:scanNow()
+        if not result or result.error then
+            return nil, (result and result.error) or "scan failed"
+        end
+        generation = result.generation
+        self.report = report_for_storage(result)
+    else
+        self.report = cached.report or self.report
+    end
+    if type(generation) ~= "table" then
+        return nil, "no scan data"
+    end
+    local css = Generate.from_generation(generation, self.theme)
+    if not css then return nil, "generation failed" end
+    return css, nil, generation
+end
+
+-- Apply a theme change to the book that is open right now. ReaderTypeset's
+-- ApplyStyleSheet is the same path KOReader uses when a style tweak changes: it
+-- re-applies the stylesheet and preserves the reading position. On failure the
+-- old CSS stays on screen and the next open picks up the new theme from cache.
+function BookTheme:applyThemeToOpenBook()
+    if not self:isEnabled() or self:isBookDisabled() or not self:isEpub() then
+        return false
+    end
+    local ok, css, err, generation = pcall(function() return self:rebuildCss() end)
+    if not ok then
+        logger.err("book-theme: rebuild failed: " .. tostring(css))
+        return false
+    end
+    if not css then
+        logger.warn("book-theme: rebuild failed: " .. tostring(err))
+        return false
+    end
+    self.generated_css = css
+    self:writeCache(css, self.report, generation)
+    local applied = pcall(function()
+        self.ui:handleEvent(Event:new("ApplyStyleSheet"))
+    end)
+    if not applied then
+        logger.err("book-theme: could not apply the new stylesheet")
+        return false
+    end
+    return true
 end
 
 function BookTheme:currentReport()
@@ -332,12 +396,14 @@ function BookTheme:syncBodyFont(family)
 end
 
 -- The single write path for a font choice. The settings table stores only the
--- two families, never the derived sizes and weights. `generated_css` is
--- deliberately not cleared: the hash changed, so the open book's cache is
--- rejected on the next open, and clearing it here could drop styling
--- mid-session on the next stylesheet rebuild.
+-- two families, never the derived sizes and weights. The open book is rebuilt
+-- from its cached generator inputs and re-rendered in place; only when that is
+-- impossible (no document, disabled book, failed rebuild) does the change wait
+-- for the next open. `generated_css` is never cleared here: clearing it could
+-- drop styling mid-session on the next stylesheet rebuild.
 function BookTheme:setFont(which, family)
     local fonts = Theme.fonts(self.theme)
+    if fonts[which] == family then return true end
     fonts[which] = family
     local changed, problems = Theme.from_fonts(fonts)
     if not changed or #problems > 0 then
@@ -346,9 +412,17 @@ function BookTheme:setFont(which, family)
     end
     G_reader_settings:saveSetting(KEY.settings, Theme.settings(changed))
     self:loadTheme()
-    local message = _("Takes effect the next time this book is opened.")
     if which == "body" then
         self:syncBodyFont(family)
+    end
+    local applied = self.ui and self.ui.document and self:applyThemeToOpenBook()
+    local message
+    if applied then
+        message = _("Applied to this book now.")
+    else
+        message = _("Takes effect the next time this book is opened.")
+    end
+    if which == "body" then
         message = _("The Aa menu font now matches.") .. "\n" .. message
     end
     show_info(message)

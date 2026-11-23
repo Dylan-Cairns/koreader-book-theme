@@ -301,4 +301,34 @@ function Generate.generate(candidates, options)
     return table.concat(lines, "\n")
 end
 
+-- Rebuild a stylesheet from the compact inputs the scan stored in the cache
+-- (`result.generation`). This is what lets a font change reach the open book
+-- without reading the EPUB again; it must produce byte-identical CSS to the
+-- scan that recorded those inputs. A damaged cache yields nil, never an error.
+local function selector_list(value)
+    if value == nil then return {} end
+    if type(value) ~= "table" then return nil end
+    return value
+end
+
+function Generate.from_generation(generation, theme)
+    if type(generation) ~= "table" or type(generation.candidates) ~= "table" then
+        return nil
+    end
+    local markers = selector_list(generation.markers)
+    local number_headings = selector_list(generation.number_headings)
+    local number_titles = selector_list(generation.number_titles)
+    local title_followers = selector_list(generation.title_followers)
+    if not markers or not number_headings or not number_titles or not title_followers then
+        return nil
+    end
+    return Generate.generate(generation.candidates, {
+        theme = theme,
+        markers = markers,
+        number_headings = number_headings,
+        number_titles = number_titles,
+        title_followers = title_followers,
+    })
+end
+
 return Generate

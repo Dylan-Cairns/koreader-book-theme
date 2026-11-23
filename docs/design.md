@@ -25,14 +25,14 @@ The stylesheet must be in place before the first render:
 - `PreRenderDocument` fires (`:340`), with the document loaded but not rendered.
 - `render()` (`:343`).
 
-Applying a new stylesheet after render changes the rendering hash and can start `ReaderRolling`'s rerender/reload machinery. `omer-faruq/readingstyle.koplugin` documents this failure mode.
+Applying a new stylesheet after render changes the rendering hash and can start `ReaderRolling`'s rerender/reload machinery. `omer-faruq/readingstyle.koplugin` documents this failure mode. That is why the first application happens before the first render; a later change goes through the path KOReader itself uses for a style tweak, not through a bare stylesheet swap.
 
 The plugin therefore:
 
 1. Wraps `ReaderStyleTweak:getCssText` in `init()` so generated CSS is appended to every stylesheet application, not just the first.
 2. Scans and applies at `PreRenderDocument`, the last free moment.
 3. Never applies for the first time from `onReaderReady`.
-4. Treats menu toggles as “next open” changes; a mid-session stylesheet change would be a reload.
+4. Applies a later face change with `ReaderTypeset`'s `ApplyStyleSheet` event, rebuilding the CSS from the cached generator inputs. That is the same live re-render a style-tweak toggle uses: it keeps the reading position and does not reload the document. A book whose cache predates the stored inputs is rescanned once.
 
 ## Reading the archive
 
@@ -99,7 +99,9 @@ Centring every heading follows the trade convention rather than a personal prefe
 
 `Theme.load` reads the stored `{body_font, heading_font}` table. A settings table from a build before the simplification is still accepted: it keeps the body face and any heading face that differs from the default, and drops the derived sizes and weights. Families are validated (length, character set) before they reach CSS, and an invalid one falls back to its default with a logged problem, so a corrupt settings table can never inject CSS or stop a book from opening.
 
-`Theme.canonical` serialises the resolved theme into sorted `key=value;` lines and `Theme.hash` runs FNV-1a over it. The hash is the per-book cache key: changing either face invalidates that book's cached CSS on the next open. The default theme hash is `23cb147d` since every heading level became centred and the sizes widened (2026-11-22); the previous defaults were `655593d8` (part/chapter centred) and `74cfd6d8` (all left).
+A face change applies to the book that is open, not only to the next one opened. The scan stores compact generator inputs in the cache (`generation`: candidate selectors and levels, marker selectors, number pairs, title followers), so `Generate.from_generation` rebuilds the stylesheet without reading the EPUB again. The adapter writes the new cache entry and fires ReaderTypeset's `ApplyStyleSheet`, the same live re-render path KOReader uses when a style tweak changes; the page restyles in place and keeps its position. A pre-11 cache has no inputs, so the first font change after the upgrade runs one scan instead. The rebuild must be byte-identical to a scan under the same theme, and a unit test asserts exactly that.
+
+`Theme.canonical` serialises the resolved theme into sorted `key=value;` lines and `Theme.hash` runs FNV-1a over it. The hash is the per-book cache key: changing either face rebuilds the open book immediately and leaves other books' caches stale until they are opened. The default theme hash is `23cb147d` since every heading level became centred and the sizes widened (2026-11-22); the previous defaults were `655593d8` (part/chapter centred) and `74cfd6d8` (all left).
 
 ## Output
 
@@ -125,15 +127,18 @@ The generated CSS and a compact report live in the book's sidecar:
 
 ```lua
 book_theme = {
-    version = 10,
+    version = 11,
     theme_hash = "23cb147d",
     css = "...",
     report = { ... },
+    generation = { candidates = {...}, markers = {...},
+        number_headings = {...}, number_titles = {...},
+        title_followers = {...} },
     scanned_at = 1234567890,
 }
 ```
 
-A cache is reused only when its version, `css` and theme hash match the current build. A mismatch triggers one lazy rescan on the next open. The Heading Normaliser cache (version 1, no hash) therefore rebuilds once per book. Version 4 added the chapter-marker rule; version 6 centred part and chapter titles, widened their spacing and added the number/title pair; version 9 added the pull-up cancellation; version 10 centres every heading level and widens the size ladder. Changing either face changes the theme hash and rebuilds exactly the affected books.
+A cache is reused only when its version, `css` and theme hash match the current build. A mismatch triggers one lazy rescan on the next open. The Heading Normaliser cache (version 1, no hash) therefore rebuilds once per book. Version 4 added the chapter-marker rule; version 6 centred part and chapter titles, widened their spacing and added the number/title pair; version 9 added the pull-up cancellation; version 10 centres every heading level and widens the size ladder; version 11 stores the generator inputs so a font change rebuilds the open book without a reopen. Changing either face changes the theme hash and rebuilds exactly the affected books.
 
 `css = ""` is a completed scan that produced no stylesheet (for example a skipped book); `css = nil` is not a completed scan. Re-scan deletes the setting; the next open rebuilds it. Saves always write `book_theme`; the legacy `heading_normalizer` key is read as a fallback and left untouched.
 

@@ -269,4 +269,42 @@ function TestGenerate:testMarkerRuleAppliesOnlyToTheNamedClass()
     luaunit.assertNotStrContains(block(css, "h1"), "display: block")
 end
 
+function TestGenerate:testFromGenerationMatchesTheOriginalScan()
+    local theme = Theme.defaults()
+    local candidates = {
+        {selector = "p.section", level = 3, role = "heading", page_break = false},
+        {selector = "p.epigraph", role = "quote"},
+        {selector = "h1.part", level = 1, page_break = true},
+    }
+    local options = {
+        theme = theme,
+        markers = {"h1 .chapter-number"},
+        number_headings = {"h2.ch_title1"},
+        number_titles = {"h2.ch_title2"},
+        title_followers = {"div.top", "p.first"},
+    }
+    local full = Generate.generate(candidates, options)
+    local generation = {
+        candidates = candidates,
+        markers = options.markers,
+        number_headings = options.number_headings,
+        number_titles = options.number_titles,
+        title_followers = options.title_followers,
+    }
+    luaunit.assertEquals(Generate.from_generation(generation, theme), full)
+
+    -- A new heading face changes the declarations and the banner hash, not the
+    -- selectors or the structure.
+    local other = Theme.from_fonts({heading = "Literata"})
+    local restyled = Generate.from_generation(generation, other)
+    luaunit.assertTrue(restyled ~= full)
+    luaunit.assertStrContains(restyled, 'font-family: "Literata" !important;')
+    luaunit.assertStrContains(restyled, "p.section {")
+    luaunit.assertStrContains(restyled, "-cr-hint: toc-level3;")
+
+    -- A missing or malformed generation is a clean failure, never an error.
+    luaunit.assertNil(Generate.from_generation(nil, theme))
+    luaunit.assertNil(Generate.from_generation({candidates = "nope"}, theme))
+end
+
 return TestGenerate

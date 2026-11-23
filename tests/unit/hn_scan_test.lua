@@ -1,6 +1,7 @@
 local luaunit = require("luaunit")
 local Scan = require("hn_scan")
 local Theme = require("hn_theme")
+local Generate = require("hn_generate")
 local Helpers = require("helpers")
 
 local TestScan = {}
@@ -210,6 +211,34 @@ function TestScan:testStandaloneNumberHeadingIsTightenedToItsTitle()
     luaunit.assertStrContains(result.css, "h2.ch_title2 {\n" ..
         "    margin: 0 0 1.5rem 0 !important;\n}")
     luaunit.assertEquals(result.stats.heading_numbers, 1)
+end
+
+function TestScan:testGenerationInputsRebuildTheSameStylesheet()
+    local theme = Theme.defaults()
+    local result = Scan.scan(book({
+        ["OEBPS/chapter1.xhtml"] = [[
+            <html><body><div id="ch1" class="chapter">
+              <h1><span class="chapter-number">1</span>Chapter One</h1>
+              <div class="top"><p class="epigraph">An epigraph.</p></div>
+              <p class="body">Ordinary text.</p>
+            </div></body></html>]],
+        ["OEBPS/chapter2.xhtml"] = [[
+            <html><body><div id="ch2" class="chapter">
+              <h2 class="ch_title1">2</h2>
+              <h2 class="ch_title2">Chapter Two</h2>
+              <p class="body">More ordinary text.</p>
+            </div></body></html>]],
+    }), {theme = theme})
+    luaunit.assertNil(result.error)
+    luaunit.assertNotNil(result.generation)
+    luaunit.assertEquals(result.generation.markers, {"h1 .chapter-number"})
+    luaunit.assertEquals(result.generation.number_headings, {"h2.ch_title1"})
+    luaunit.assertEquals(result.generation.number_titles, {"h2.ch_title2"})
+    luaunit.assertTrue(#result.generation.title_followers > 0)
+    -- The compact inputs in the cache must rebuild exactly the scan's
+    -- stylesheet; that is what lets a font change re-render the open book
+    -- without reading the EPUB again.
+    luaunit.assertEquals(Generate.from_generation(result.generation, theme), result.css)
 end
 
 return TestScan

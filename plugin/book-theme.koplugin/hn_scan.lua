@@ -265,6 +265,25 @@ function Scan.scan(reader, options)
         end
         table.sort(followers)
         settings.title_followers = followers
+        -- Everything the generator needs, kept compact in the per-book cache so
+        -- a theme change can rebuild the stylesheet without re-reading the
+        -- EPUB. Only fields the generator consumes are stored.
+        local generation_candidates = {}
+        for _, candidate in ipairs(merged) do
+            generation_candidates[#generation_candidates + 1] = {
+                selector = candidate.selector,
+                level = candidate.level,
+                role = candidate.role,
+                page_break = candidate.page_break,
+            }
+        end
+        result.generation = {
+            candidates = generation_candidates,
+            markers = marker_list,
+            number_headings = numbers,
+            number_titles = titles,
+            title_followers = followers,
+        }
         -- The base stylesheet (body, real headings, quote type) applies even
         -- when no pseudo-heading was found, so CSS is never nil for a book we
         -- could read.
