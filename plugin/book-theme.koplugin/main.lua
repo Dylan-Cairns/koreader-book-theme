@@ -33,6 +33,8 @@ local Cache = require("hn_cache")
 -- device and was never committed). Version 10 centres every heading level and
 -- widens the size ladder to 1.75/1.50/1.25/1.00 rem. Version 11 stores the
 -- generator inputs, so a font change rebuilds the open book without a reopen.
+-- The 2026-11-23 defaults change the theme hash without a version bump, so
+-- affected books rebuild on their next open.
 local VERSION = 11
 
 -- Saves always write the current key. The legacy heading_normalizer* keys are

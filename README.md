@@ -35,7 +35,7 @@ Upgrading from Heading Normaliser: deploy with `tools/Device.ps1 Deploy`, which 
 - **Disable for this book**
 - **Diagnostics** — Status and detected headings, View/Copy/Export generated CSS, Prepare KOReader settings, Re-scan this book on next open.
 
-Everything except the two face choices is a fixed default: heading sizes 1.75/1.50/1.25/1.00 rem, bold headings, every heading level centred, uppercase minor headings, extra space below part/chapter titles, italic quotes. There is no per-level editor, so no combination of menu choices can produce a stylesheet the renderer cannot use.
+Everything except the two face choices is a fixed default: heading sizes 1.75/1.50/1.25/1.05 rem, bold headings, the chapter opening block centred and section/minor headings left aligned, lining figures on headings, uppercase minor headings, extra space below part/chapter titles, italic quotes. There is no per-level editor, so no combination of menu choices can produce a stylesheet the renderer cannot use.
 
 Changing either face restyles the book you are reading straight away, keeping your place; other books pick the change up when they are next opened.
 

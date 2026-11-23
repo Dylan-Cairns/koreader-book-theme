@@ -165,9 +165,12 @@ function TestScan:testGluedChapterNumberGetsASpace()
     }), {})
     luaunit.assertNil(result.error)
     luaunit.assertStrContains(result.css, "h1 .chapter-number {\n" ..
+        "    display: block !important;\n" ..
         "    font-family: inherit !important;\n" ..
-        "    display: inline-block !important;\n" ..
-        "    margin-right: 0.35em !important;\n}")
+        "    font-size: 1.05rem !important;\n" ..
+        "    line-height: 1.15 !important;\n" ..
+        "    margin: 0 0 0.3rem 0 !important;\n" ..
+        "    font-variant-numeric: lining-nums !important;\n}")
     luaunit.assertEquals(result.stats.heading_markers, 1)
 end
 
@@ -207,7 +210,10 @@ function TestScan:testStandaloneNumberHeadingIsTightenedToItsTitle()
     }), {})
     luaunit.assertNil(result.error)
     luaunit.assertStrContains(result.css, "h2.ch_title1 {\n" ..
-        "    margin: 2.4rem 0 0.3rem 0 !important;\n}")
+        "    font-size: 1.05rem !important;\n" ..
+        "    line-height: 1.15 !important;\n" ..
+        "    margin: 2.4rem 0 0.3rem 0 !important;\n" ..
+        "    font-variant-numeric: lining-nums !important;\n}")
     luaunit.assertStrContains(result.css, "h2.ch_title2 {\n" ..
         "    margin: 0 0 1.5rem 0 !important;\n}")
     luaunit.assertEquals(result.stats.heading_numbers, 1)

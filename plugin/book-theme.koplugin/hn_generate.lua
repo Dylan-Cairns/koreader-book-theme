@@ -24,9 +24,20 @@ local ROLE_METRICS = {
     minor = {line_height = "1.35", margin_top = "1.5rem", margin_bottom = "0.5rem"},
 }
 
--- A chapter number set as its own heading sits just above its title. Small on
--- purpose: the two headings are one title block, not two sections.
+-- A chapter number -- whether it is a standalone heading or glued inside the
+-- title's own heading -- is one style: a secondary line above the title, in
+-- the heading face, larger than body text but clearly smaller than the title.
+-- The owner saw two treatments on device (a block line for standalone numbers,
+-- an inline one for glued numbers) and asked for one; the supplied book-design
+-- reference also requires the title to dominate the number.
+local NUMBER_SIZE = "1.05rem"
 local NUMBER_GAP = "0.3rem"
+
+-- Old-style (text) figures are the default in EB Garamond and Cormorant
+-- Garamond, and they look wrong on a chapter number. crengine does not support
+-- font-feature-settings, but it does map font-variant-numeric: lining-nums to
+-- HarfBuzz +lnum, so this is the one form that works on device.
+local LINING_FIGURES = "    font-variant-numeric: lining-nums !important;"
 
 local ROLE_ORDER = {"part", "chapter", "section", "minor"}
 
@@ -82,6 +93,7 @@ local function heading_declarations(level, role)
         "    font-weight: " .. role.weight .. " !important;",
         "    font-style: " .. (role.style or "normal") .. " !important;",
         "    font-size: " .. role.size .. " !important;",
+        LINING_FIGURES,
         "    line-height: " .. metrics.line_height .. " !important;",
         "    margin: " .. margin_value(metrics) .. " !important;",
         "    text-align: " .. (role.align or "left") .. " !important;",
@@ -211,34 +223,59 @@ function Generate.generate(candidates, options)
         append_rule(lines, descendants, DESCENDANT_RESET)
     end
 
-    -- A leading chapter number that the publisher separates only through its
-    -- own stylesheet. The markup has no whitespace ("<h1><span>19</span>Hist")
-    -- and publisher separation is usually a block line. A small inline gap
-    -- reads better in a reader and is what the owner asked for, so the number
-    -- stays on the title line, in the heading's own face: `font-family:
-    -- inherit` also overrides a user tweak that forces every span to the body
-    -- face. Scoped to the marker class; body text can never match.
+    -- Detected pseudo-headings share the role declarations; only they get a
+    -- ToC hint, because the hint would not be valid on a real heading.
+    for level = 1, 6 do
+        local selectors = unique_sorted(heading_selectors[level] or {})
+        if #selectors > 0 then
+            local role = roles[Theme.role_for_level(level)]
+            local hint = toc_hints and ("    -cr-hint: toc-level" .. level .. ";") or nil
+            append_rule(lines, selectors, heading_declarations(level, role), hint)
+
+            -- Publisher spans inside a title must not keep their own size or
+            -- weight. The selector itself keeps the theme declarations.
+            local descendants = {}
+            for _, selector in ipairs(selectors) do
+                descendants[#descendants + 1] = selector .. " *"
+            end
+            append_rule(lines, descendants, DESCENDANT_RESET)
+        end
+    end
+
+    -- Chapter-number rules come after the heading rules on purpose: a number
+    -- pair can itself be a detected pseudo-heading, and these declarations must
+    -- win the tie. Both forms of number -- a standalone heading and a span
+    -- glued inside the title's heading -- get the same treatment: a secondary
+    -- line above the title, in the heading face, larger than body text but
+    -- clearly smaller than the title.
     local markers = options.markers or {}
     if #markers > 0 then
         append_rule(lines, unique_sorted(markers), {
+            "    display: block !important;",
             "    font-family: inherit !important;",
-            "    display: inline-block !important;",
-            "    margin-right: 0.35em !important;",
+            "    font-size: " .. NUMBER_SIZE .. " !important;",
+            "    line-height: 1.15 !important;",
+            "    margin: 0 0 " .. NUMBER_GAP .. " 0 !important;",
+            LINING_FIGURES,
         })
     end
 
     -- A chapter number set as its own heading, immediately above the title
-    -- heading. Both are one title block: keep the number's own top margin but
-    -- remove the double gap between them, and leave the space below the title
-    -- intact so the opening text does not crowd it. Both rules repeat the full
-    -- margin shorthand, so later rules cannot leave one side at its default.
+    -- heading. Both are one title block: keep the number's own top margin and
+    -- its smaller size, remove the double gap between them, and leave the
+    -- space below the title intact so the opening text does not crowd it. Both
+    -- rules repeat the full margin shorthand, so later rules cannot leave one
+    -- side at its default.
     local number_groups = group_selectors(options.number_headings or {}, {})
     local title_groups = group_selectors(options.number_titles or {}, {})
     for _, role in ipairs(ROLE_ORDER) do
         local metrics = ROLE_METRICS[role]
         if number_groups[role] then
             append_rule(lines, unique_sorted(number_groups[role]), {
+                "    font-size: " .. NUMBER_SIZE .. " !important;",
+                "    line-height: 1.15 !important;",
                 "    margin: " .. metrics.margin_top .. " 0 " .. NUMBER_GAP .. " 0 !important;",
+                LINING_FIGURES,
             })
         end
         if title_groups[role] then
@@ -258,25 +295,6 @@ function Generate.generate(candidates, options)
         append_rule(lines, followers, {
             "    margin-top: 0 !important;",
         })
-    end
-
-    -- Detected pseudo-headings share the role declarations; only they get a
-    -- ToC hint, because the hint would not be valid on a real heading.
-    for level = 1, 6 do
-        local selectors = unique_sorted(heading_selectors[level] or {})
-        if #selectors > 0 then
-            local role = roles[Theme.role_for_level(level)]
-            local hint = toc_hints and ("    -cr-hint: toc-level" .. level .. ";") or nil
-            append_rule(lines, selectors, heading_declarations(level, role), hint)
-
-            -- Publisher spans inside a title must not keep their own size or
-            -- weight. The selector itself keeps the theme declarations.
-            local descendants = {}
-            for _, selector in ipairs(selectors) do
-                descendants[#descendants + 1] = selector .. " *"
-            end
-            append_rule(lines, descendants, DESCENDANT_RESET)
-        end
     end
 
     quote_selectors = unique_sorted(quote_selectors)

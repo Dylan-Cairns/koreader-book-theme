@@ -20,13 +20,15 @@ function TestTheme:testDefaultsMatchTheSpec()
     luaunit.assertEquals(theme.roles.part.size, "1.75rem")
     luaunit.assertEquals(theme.roles.chapter.size, "1.50rem")
     luaunit.assertEquals(theme.roles.section.size, "1.25rem")
-    luaunit.assertEquals(theme.roles.minor.size, "1.00rem")
+    luaunit.assertEquals(theme.roles.minor.size, "1.05rem")
     luaunit.assertEquals(theme.roles.minor.case, "upper")
     luaunit.assertEquals(theme.roles.minor.spacing, "0.05em")
-    -- Every heading level is centred; the sizes must stay a visible ladder.
-    for _, role in ipairs({"part", "chapter", "section", "minor"}) do
-        luaunit.assertEquals(theme.roles[role].align, "center", role)
-    end
+    -- The chapter opening block is centred; section and minor headings sit in
+    -- prose and stay left aligned.
+    luaunit.assertEquals(theme.roles.part.align, "center")
+    luaunit.assertEquals(theme.roles.chapter.align, "center")
+    luaunit.assertEquals(theme.roles.section.align, "left")
+    luaunit.assertEquals(theme.roles.minor.align, "left")
     luaunit.assertEquals(theme.roles.quote.family, "EB Garamond")
     luaunit.assertEquals(theme.roles.quote.style, "italic")
     luaunit.assertEquals(theme.toc_hints, true)
@@ -191,10 +193,12 @@ function TestTheme:testCanonicalIsSortedAndStable()
 end
 
 function TestTheme:testHashIsStable()
-    -- 23cb147d is the default theme after every heading level became centred
-    -- and the size ladder widened (2026-11-22). The previous defaults were
+    -- b575eae4 is the default theme after the chapter opening block became
+    -- centred-only, section and minor went back to the left, minor moved just
+    -- above body size, and headings switched to lining figures (2026-11-23).
+    -- Earlier defaults were 23cb147d (every level centred, v1 ladder),
     -- 655593d8 (part/chapter centred) and 74cfd6d8 (all left).
-    luaunit.assertEquals(Theme.hash(Theme.defaults()), "23cb147d")
+    luaunit.assertEquals(Theme.hash(Theme.defaults()), "b575eae4")
 end
 
 function TestTheme:testHashIsKeyOrderIndependent()

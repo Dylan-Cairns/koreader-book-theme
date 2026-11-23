@@ -58,9 +58,13 @@ function TestGenerate:testRealHeadingsAlwaysThemed()
     luaunit.assertStrContains(block(css, "h3"), "font-size: 1.25rem !important;")
     local minor = block(css, "h4,\nh5,\nh6")
     luaunit.assertNotNil(minor)
-    luaunit.assertStrContains(minor, "font-size: 1.00rem !important;")
+    luaunit.assertStrContains(minor, "font-size: 1.05rem !important;")
     luaunit.assertStrContains(minor, "text-transform: uppercase !important;")
     luaunit.assertStrContains(minor, "letter-spacing: 0.05em !important;")
+
+    -- Old-style figures are the default in the Garamond faces; headings and
+    -- chapter numbers opt into lining figures.
+    luaunit.assertStrContains(h1, "font-variant-numeric: lining-nums !important;")
 
     -- A publisher span inside a real heading must not keep its own metrics.
     local reset = block(css, "h1 *")
@@ -191,18 +195,21 @@ function TestGenerate:testNoMarkerRuleWithoutMarkers()
     luaunit.assertNotStrContains(css, "margin-right: 0.35em")
 end
 
-function TestGenerate:testHeadingMarkerGetsASpaceOnTheTitleLine()
+function TestGenerate:testHeadingMarkerSitsAboveTheTitleInItsOwnFace()
     local css = generate({}, nil, {markers = {"h1 .chapter-number"}})
     local marker = block(css, "h1 .chapter-number")
     luaunit.assertNotNil(marker)
-    -- Same line, same face, same size: only a gap separates the number.
-    luaunit.assertStrContains(marker, "display: inline-block !important;")
-    luaunit.assertStrContains(marker, "margin-right: 0.35em !important;")
+    -- A block line above the title, in the heading's own face, smaller than
+    -- the title: the same treatment as a standalone number heading.
+    luaunit.assertStrContains(marker, "display: block !important;")
     luaunit.assertStrContains(marker, "font-family: inherit !important;")
-    luaunit.assertNotStrContains(marker, "display: block")
-    luaunit.assertNotStrContains(marker, "font-size:")
+    luaunit.assertStrContains(marker, "font-size: 1.05rem !important;")
+    luaunit.assertStrContains(marker, "line-height: 1.15 !important;")
+    luaunit.assertStrContains(marker, "margin: 0 0 0.3rem 0 !important;")
+    luaunit.assertStrContains(marker, "font-variant-numeric: lining-nums !important;")
+    luaunit.assertNotStrContains(marker, "display: inline-block")
+    luaunit.assertNotStrContains(marker, "margin-right:")
     luaunit.assertNotStrContains(marker, "letter-spacing:")
-    luaunit.assertNotStrContains(marker, "margin: ")
 end
 
 function TestGenerate:testMarkersAreSortedAndDeduplicated()
@@ -212,18 +219,24 @@ function TestGenerate:testMarkersAreSortedAndDeduplicated()
     luaunit.assertEquals(Helpers.count(css, "h1 .chapter-number,\nh2 .num {"), 1)
 end
 
-function TestGenerate:testStandaloneNumberSitsCloseToItsTitle()
+function TestGenerate:testStandaloneNumberSitsAboveAndBelowItsTitleInSize()
     local css = generate({}, nil, {
         number_headings = {"h2.ch_title1"},
         number_titles = {"h2.ch_title2"},
     })
     local number = block(css, "h2.ch_title1")
     luaunit.assertNotNil(number)
+    -- Smaller than the chapter title above it, with lining figures.
+    luaunit.assertStrContains(number, "font-size: 1.05rem !important;")
+    luaunit.assertStrContains(number, "line-height: 1.15 !important;")
+    luaunit.assertStrContains(number, "font-variant-numeric: lining-nums !important;")
     -- Full shorthand: a longhand override lost the other sides in crengine.
     luaunit.assertStrContains(number, "margin: 2.4rem 0 0.3rem 0 !important;")
     local title = block(css, "h2.ch_title2")
     luaunit.assertNotNil(title)
     luaunit.assertStrContains(title, "margin: 0 0 1.5rem 0 !important;")
+    -- The title keeps the role size, so it dominates the number.
+    luaunit.assertStrContains(block(css, "h2"), "font-size: 1.50rem !important;")
 end
 
 function TestGenerate:testStandaloneNumberUsesTheMetricsOfItsHeadingLevel()
@@ -232,6 +245,7 @@ function TestGenerate:testStandaloneNumberUsesTheMetricsOfItsHeadingLevel()
         number_titles = {"h1.part-title"},
     })
     local number = block(css, "h1.part-number")
+    luaunit.assertStrContains(number, "font-size: 1.05rem !important;")
     luaunit.assertStrContains(number, "margin: 2.8rem 0 0.3rem 0 !important;")
     local title = block(css, "h1.part-title")
     luaunit.assertStrContains(title, "margin: 0 0 1.8rem 0 !important;")
@@ -246,20 +260,19 @@ function TestGenerate:testTitleFollowerLosesItsPullUp()
     luaunit.assertStrContains(css, "div.top,\np.first {\n    margin-top: 0 !important;\n}")
 end
 
-function TestGenerate:testEveryHeadingLevelIsCentredAndSized()
+function TestGenerate:testChapterBlockCentredAndSubheadsLeft()
     local theme = Theme.defaults()
-    luaunit.assertEquals(theme.roles.chapter.align, "center")
     luaunit.assertEquals(theme.roles.part.align, "center")
-    -- The owner asked for section headings centred too, after a left-aligned
-    -- <h3 class="sec1"> read as body text on device (2026-11-22).
-    luaunit.assertEquals(theme.roles.section.align, "center")
-    luaunit.assertEquals(theme.roles.minor.align, "center")
+    luaunit.assertEquals(theme.roles.chapter.align, "center")
+    -- Everything below the chapter title sits in prose, so it is left aligned.
+    luaunit.assertEquals(theme.roles.section.align, "left")
+    luaunit.assertEquals(theme.roles.minor.align, "left")
     local css = generate({})
     local chapter = block(css, "h2")
     luaunit.assertStrContains(chapter, "text-align: center !important;")
     luaunit.assertStrContains(chapter, "margin: 2.4rem 0 1.5rem !important;")
-    luaunit.assertStrContains(block(css, "h3"), "text-align: center !important;")
-    luaunit.assertStrContains(block(css, "h4,\nh5,\nh6"), "text-align: center !important;")
+    luaunit.assertStrContains(block(css, "h3"), "text-align: left !important;")
+    luaunit.assertStrContains(block(css, "h4,\nh5,\nh6"), "text-align: left !important;")
 end
 
 function TestGenerate:testMarkerRuleAppliesOnlyToTheNamedClass()

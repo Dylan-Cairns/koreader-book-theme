@@ -159,14 +159,15 @@ of the ladder, centred, in the heading face.</p>
 <p>The h3 step sits inside prose and stays tight to the text below it.</p>
 
 <h4>Minor Heading (h4)</h4>
-<p>Minor headings are body-sized and uppercase, so case, weight and tracking
-separate them from a bold paragraph.</p>
+<p>Minor headings are only just larger than body text and uppercase, so case,
+weight and tracking separate them from a bold paragraph.</p>
 
 <h5>Minor Heading (h5)</h5>
 <p>h5 and h6 share the minor role with h4.</p>
 
 <h6>Minor Heading (h6)</h6>
-<p>Every level is centred; none of them can be confused with body text.</p>
+<p>Part and chapter titles are centred; section and minor headings align
+left, so they cannot be confused with body text.</p>
 """
 
 PART = """
@@ -200,9 +201,11 @@ a clear gap below it. Both margins belong to the theme.</p>
 GLUED = """
 <h1 id="glued"><span class="chapter-number">19</span>A Chapter Number Glued to Its Title</h1>
 <p class="first">The publisher separates the number from the title only in its
-own stylesheet. With that stylesheet off the two would touch; the plugin
-inserts a small gap in the heading's own face instead.</p>
-<p>This page checks that the gap is visible without the publisher's CSS.</p>
+own stylesheet. With that stylesheet off the two would touch; the plugin moves
+the number onto its own line above the title, in the heading's own face and
+smaller than the title.</p>
+<p>This page checks that the number is subordinate to the title without the
+publisher's CSS.</p>
 """
 
 LAYOUT = """
@@ -211,12 +214,12 @@ LAYOUT = """
 makes these three lines heading-shaped.</p>
 
 <p class="layout-mid" id="layout-mid">A Mid-Sized Heading Found by Layout</p>
-<p>Bold, centred and larger than body text: the plugin reads that combination
-as a section heading.</p>
+<p>Bold, centred and larger than body text in the source: the plugin reads that
+combination as a section heading and applies its own alignment.</p>
 
 <p class="layout-minor" id="layout-minor">A Minor Heading Found by Layout</p>
-<p>Uppercase, bold and centred, but body-sized: the plugin reads it as a minor
-heading, the same role as h4-h6.</p>
+<p>Uppercase, bold and centred in the source, but only just above body size:
+the plugin reads it as a minor heading, the same role as h4-h6.</p>
 """
 
 SEMANTIC_CHAPTER = """
