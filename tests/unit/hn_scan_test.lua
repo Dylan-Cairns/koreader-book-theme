@@ -168,6 +168,7 @@ function TestScan:testGluedChapterNumberGetsASpace()
         "    display: block !important;\n" ..
         "    font-family: inherit !important;\n" ..
         "    font-size: 1.05rem !important;\n" ..
+        "    font-weight: normal !important;\n" ..
         "    line-height: 1.15 !important;\n" ..
         "    margin: 0 0 0.3rem 0 !important;\n" ..
         "    font-variant-numeric: lining-nums !important;\n}")
@@ -211,6 +212,7 @@ function TestScan:testStandaloneNumberHeadingIsTightenedToItsTitle()
     luaunit.assertNil(result.error)
     luaunit.assertStrContains(result.css, "h2.ch_title1 {\n" ..
         "    font-size: 1.05rem !important;\n" ..
+        "    font-weight: normal !important;\n" ..
         "    line-height: 1.15 !important;\n" ..
         "    margin: 2.4rem 0 0.3rem 0 !important;\n" ..
         "    font-variant-numeric: lining-nums !important;\n}")

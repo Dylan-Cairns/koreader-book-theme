@@ -55,12 +55,12 @@ function TestGenerate:testRealHeadingsAlwaysThemed()
     luaunit.assertStrContains(h1, "text-transform: none !important;")
 
     luaunit.assertStrContains(block(css, "h2"), "font-size: 1.50rem !important;")
-    luaunit.assertStrContains(block(css, "h3"), "font-size: 1.25rem !important;")
+    luaunit.assertStrContains(block(css, "h3"), "font-size: 1.15rem !important;")
     local minor = block(css, "h4,\nh5,\nh6")
     luaunit.assertNotNil(minor)
-    luaunit.assertStrContains(minor, "font-size: 1.05rem !important;")
-    luaunit.assertStrContains(minor, "text-transform: uppercase !important;")
-    luaunit.assertStrContains(minor, "letter-spacing: 0.05em !important;")
+    luaunit.assertStrContains(minor, "font-size: 1.00rem !important;")
+    luaunit.assertStrContains(minor, "text-transform: none !important;")
+    luaunit.assertStrContains(minor, "letter-spacing: normal !important;")
 
     -- Old-style figures are the default in the Garamond faces; headings and
     -- chapter numbers opt into lining figures.
@@ -204,6 +204,7 @@ function TestGenerate:testHeadingMarkerSitsAboveTheTitleInItsOwnFace()
     luaunit.assertStrContains(marker, "display: block !important;")
     luaunit.assertStrContains(marker, "font-family: inherit !important;")
     luaunit.assertStrContains(marker, "font-size: 1.05rem !important;")
+    luaunit.assertStrContains(marker, "font-weight: normal !important;")
     luaunit.assertStrContains(marker, "line-height: 1.15 !important;")
     luaunit.assertStrContains(marker, "margin: 0 0 0.3rem 0 !important;")
     luaunit.assertStrContains(marker, "font-variant-numeric: lining-nums !important;")
@@ -226,8 +227,10 @@ function TestGenerate:testStandaloneNumberSitsAboveAndBelowItsTitleInSize()
     })
     local number = block(css, "h2.ch_title1")
     luaunit.assertNotNil(number)
-    -- Smaller than the chapter title above it, with lining figures.
+    -- Smaller than the chapter title above it, in regular weight, with lining
+    -- figures.
     luaunit.assertStrContains(number, "font-size: 1.05rem !important;")
+    luaunit.assertStrContains(number, "font-weight: normal !important;")
     luaunit.assertStrContains(number, "line-height: 1.15 !important;")
     luaunit.assertStrContains(number, "font-variant-numeric: lining-nums !important;")
     -- Full shorthand: a longhand override lost the other sides in crengine.

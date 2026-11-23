@@ -246,14 +246,15 @@ function Generate.generate(candidates, options)
     -- pair can itself be a detected pseudo-heading, and these declarations must
     -- win the tie. Both forms of number -- a standalone heading and a span
     -- glued inside the title's heading -- get the same treatment: a secondary
-    -- line above the title, in the heading face, larger than body text but
-    -- clearly smaller than the title.
+    -- line above the title, in the heading face, regular weight, and clearly
+    -- smaller than the title.
     local markers = options.markers or {}
     if #markers > 0 then
         append_rule(lines, unique_sorted(markers), {
             "    display: block !important;",
             "    font-family: inherit !important;",
             "    font-size: " .. NUMBER_SIZE .. " !important;",
+            "    font-weight: normal !important;",
             "    line-height: 1.15 !important;",
             "    margin: 0 0 " .. NUMBER_GAP .. " 0 !important;",
             LINING_FIGURES,
@@ -273,6 +274,7 @@ function Generate.generate(candidates, options)
         if number_groups[role] then
             append_rule(lines, unique_sorted(number_groups[role]), {
                 "    font-size: " .. NUMBER_SIZE .. " !important;",
+                "    font-weight: normal !important;",
                 "    line-height: 1.15 !important;",
                 "    margin: " .. metrics.margin_top .. " 0 " .. NUMBER_GAP .. " 0 !important;",
                 LINING_FIGURES,

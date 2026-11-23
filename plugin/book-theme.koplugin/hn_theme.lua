@@ -55,13 +55,13 @@ Theme.DEFAULT_FONTS = {body = "EB Garamond", heading = "Alegreya Sans"}
 -- chapter is centred -- the part title, the chapter title and its number --
 -- because that is the book convention and what the owner asked for. Section
 -- and minor headings sit inside prose, so they stay left aligned: a centred
--- line in the middle of body text reads as a divider, not a heading. The four
--- sizes step clearly (1.75/1.50/1.25/1.05) so each level is visibly larger
--- than the next. The lowest level is only just above body text: a minor
--- heading is a run-in marker, told apart by case, weight and tracking rather
--- than size. A book-design reference the owner supplied makes the same point
--- about chapter numbers: the title must be the most prominent element, the
--- number secondary.
+-- line in the middle of body text reads as a divider, not a heading. Part and
+-- chapter titles are display type and may be much larger than body text. The
+-- in-text levels follow book practice instead of a display scale: section at
+-- 1.15rem and minor at body size (1.00rem), sentence case and bold, separated
+-- by weight and space rather than size. A book-design reference the owner
+-- supplied makes the same point about chapter numbers: the title must be the
+-- most prominent element, the number secondary and in the regular weight.
 function Theme.defaults()
     return {
         version = 1,
@@ -71,10 +71,10 @@ function Theme.defaults()
                 case = "none", align = "center"},
             chapter = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.50rem",
                 case = "none", align = "center"},
-            section = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.25rem",
+            section = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.15rem",
                 case = "none", align = "left"},
-            minor = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.05rem",
-                case = "upper", align = "left", spacing = "0.05em"},
+            minor = {family = Theme.DEFAULT_FONTS.heading, weight = "bold", size = "1.00rem",
+                case = "none", align = "left"},
             quote = {family = Theme.DEFAULT_FONTS.body, weight = "normal", style = "italic"},
         },
         toc_hints = true,

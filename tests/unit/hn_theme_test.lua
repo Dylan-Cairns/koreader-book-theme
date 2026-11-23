@@ -19,10 +19,10 @@ function TestTheme:testDefaultsMatchTheSpec()
     luaunit.assertEquals(theme.roles.part.weight, "bold")
     luaunit.assertEquals(theme.roles.part.size, "1.75rem")
     luaunit.assertEquals(theme.roles.chapter.size, "1.50rem")
-    luaunit.assertEquals(theme.roles.section.size, "1.25rem")
-    luaunit.assertEquals(theme.roles.minor.size, "1.05rem")
-    luaunit.assertEquals(theme.roles.minor.case, "upper")
-    luaunit.assertEquals(theme.roles.minor.spacing, "0.05em")
+    luaunit.assertEquals(theme.roles.section.size, "1.15rem")
+    luaunit.assertEquals(theme.roles.minor.size, "1.00rem")
+    luaunit.assertEquals(theme.roles.minor.case, "none")
+    luaunit.assertNil(theme.roles.minor.spacing)
     -- The chapter opening block is centred; section and minor headings sit in
     -- prose and stay left aligned.
     luaunit.assertEquals(theme.roles.part.align, "center")
@@ -65,7 +65,7 @@ function TestTheme:testFromFontsChangesWholeRoles()
     -- Sizes and weights stay on their defaults.
     luaunit.assertEquals(theme.roles.chapter.size, "1.50rem")
     luaunit.assertEquals(theme.roles.chapter.weight, "bold")
-    luaunit.assertEquals(theme.roles.minor.case, "upper")
+    luaunit.assertEquals(theme.roles.minor.case, "none")
     luaunit.assertEquals(#Theme.validate(theme), 0)
 end
 
@@ -110,7 +110,7 @@ function TestTheme:testLoadWithoutStoredTheme()
     luaunit.assertEquals(#problems, 0)
     luaunit.assertEquals(theme.body.family, "EB Garamond")
     theme = Theme.load({})
-    luaunit.assertEquals(theme.roles.minor.spacing, "0.05em")
+    luaunit.assertNil(theme.roles.minor.spacing)
 end
 
 function TestTheme:testLoadRejectsNonTable()
@@ -150,8 +150,8 @@ function TestTheme:testLoadMigratesLegacyRoleTable()
     luaunit.assertEquals(theme.roles.section.family, "FreeSans")
     luaunit.assertEquals(theme.roles.quote.family, "Literata")
     -- Derived values do not migrate; they come from the defaults.
-    luaunit.assertEquals(theme.roles.section.size, "1.25rem")
-    luaunit.assertEquals(theme.roles.minor.case, "upper")
+    luaunit.assertEquals(theme.roles.section.size, "1.15rem")
+    luaunit.assertEquals(theme.roles.minor.case, "none")
 end
 
 function TestTheme:testLoadLegacyDefaultsProduceTheDefaultSettings()
@@ -193,12 +193,12 @@ function TestTheme:testCanonicalIsSortedAndStable()
 end
 
 function TestTheme:testHashIsStable()
-    -- b575eae4 is the default theme after the chapter opening block became
-    -- centred-only, section and minor went back to the left, minor moved just
-    -- above body size, and headings switched to lining figures (2026-11-23).
-    -- Earlier defaults were 23cb147d (every level centred, v1 ladder),
-    -- 655593d8 (part/chapter centred) and 74cfd6d8 (all left).
-    luaunit.assertEquals(Theme.hash(Theme.defaults()), "b575eae4")
+    -- 771e1e6a is the default theme after the in-text levels moved to the book
+    -- scale: section 1.15rem, minor 1.00rem sentence case, no tracking, and
+    -- chapter numbers regular weight (2026-11-23). Earlier defaults were
+    -- b575eae4 (minor 1.05rem uppercase), 23cb147d (every level centred, v1
+    -- ladder), 655593d8 (part/chapter centred) and 74cfd6d8 (all left).
+    luaunit.assertEquals(Theme.hash(Theme.defaults()), "771e1e6a")
 end
 
 function TestTheme:testHashIsKeyOrderIndependent()

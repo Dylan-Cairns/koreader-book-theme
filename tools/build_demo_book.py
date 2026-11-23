@@ -159,8 +159,8 @@ of the ladder, centred, in the heading face.</p>
 <p>The h3 step sits inside prose and stays tight to the text below it.</p>
 
 <h4>Minor Heading (h4)</h4>
-<p>Minor headings are only just larger than body text and uppercase, so case,
-weight and tracking separate them from a bold paragraph.</p>
+<p>Minor headings are body size, bold and sentence case, so weight and space
+separate them from a bold paragraph without making them another section.</p>
 
 <h5>Minor Heading (h5)</h5>
 <p>h5 and h6 share the minor role with h4.</p>
@@ -185,7 +185,7 @@ CHAPTER = """
 the first one chapter level and the nested entry section level, so the size
 difference is the theme's, not the publisher's.</p>
 <p>An ordinary paragraph follows the section head. Compare its size with the
-section title above: 1 rem against 1.25 rem.</p>
+section title above: 1 rem against 1.15 rem.</p>
 """
 
 PAIR = """

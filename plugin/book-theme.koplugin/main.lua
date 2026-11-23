@@ -35,7 +35,7 @@ local Cache = require("hn_cache")
 -- generator inputs, so a font change rebuilds the open book without a reopen.
 -- The 2026-11-23 defaults change the theme hash without a version bump, so
 -- affected books rebuild on their next open.
-local VERSION = 11
+local VERSION = 12
 
 -- Saves always write the current key. The legacy heading_normalizer* keys are
 -- read only as a fallback, so an existing device state survives the rename. A
