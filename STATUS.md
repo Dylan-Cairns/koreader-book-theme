@@ -183,7 +183,7 @@ Owner feedback: why two chapter-number styles; numbers should go above the title
 
 ## Next action
 
-The sixth round is implemented, tested offline and verified on the device: one chapter-number style (a smaller block line above the title, lining figures), the chapter opening block centred with section/minor left aligned, and minor at 1.05 rem. Nothing has been pushed; the working tree is ready to commit.
+The sixth round is implemented, tested offline and verified on the device: one chapter-number style (a smaller block line above the title, lining figures), the chapter opening block centred with section/minor left aligned, and minor at 1.05 rem. It is committed as `4bcea9e`; nothing has been pushed.
 
 The demo book is built, verified offline and checked on the device from start to finish (commit `f14f9f7`); its own copy now describes the sixth-round rules.
 
