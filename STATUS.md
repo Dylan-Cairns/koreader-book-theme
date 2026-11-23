@@ -170,11 +170,13 @@ A single demonstration EPUB exercises every styling path so the owner can see th
 
 ## Next action
 
-The fifth round is complete and verified on device for *Rethinking Meditation*: body and heading face changes restyle the open book in place, keep the reading position, show no reload prompt and rewrite the v11 cache immediately. It is committed as `8411834`; nothing has been pushed.
+The demo book is built, verified offline and checked on the device from start to finish; it is committed as `f14f9f7` (builder plus the demo record) and nothing has been pushed. Nothing in the engine, detection or CSS changed, so no corpus re-measurement was needed.
+
+The fifth round remains complete and verified on device for *Rethinking Meditation*: body and heading face changes restyle the open book in place, keep the reading position, show no reload prompt and rewrite the v11 cache immediately (commit `8411834`).
 
 Remaining owner-facing caveat: the picker still lists Hyperreadable and Libron R because KOReader's own bundled font tree contains copies installed by the removed Zenos plugin, and that tree is app-private on a non-debuggable install. All copies under `/sdcard/koreader/fonts` are gone.
 
-The next step is the owner's: try the font menus on another book, then decide whether the bundled leftovers matter. Anything that changes detection or the CSS needs `.\tools\Test.ps1` plus a fresh corpus measurement, and a device deploy only when the change is meant to ship.
+The next step is the owner's: read the demo on the device (or from `local/demo/book-theme-demo.epub`), then decide whether the bundled font leftovers matter. Anything that changes detection or the CSS needs `.\tools\Test.ps1` plus a fresh corpus measurement, and a device deploy only when the change is meant to ship.
 
 ## Open work
 
