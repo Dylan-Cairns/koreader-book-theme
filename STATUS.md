@@ -157,7 +157,7 @@ Device Go6 `6C7AE6EA`, KOReader v2026.07.2, 1072x1448. Everything here was seen 
 
 ## Next action
 
-The fifth round is complete and verified on device for *Rethinking Meditation*: body and heading face changes restyle the open book in place, keep the reading position, show no reload prompt and rewrite the v11 cache immediately. Commit this round (the working tree was uncommitted at the time of writing); nothing has been pushed.
+The fifth round is complete and verified on device for *Rethinking Meditation*: body and heading face changes restyle the open book in place, keep the reading position, show no reload prompt and rewrite the v11 cache immediately. It is committed as `8411834`; nothing has been pushed.
 
 Remaining owner-facing caveat: the picker still lists Hyperreadable and Libron R because KOReader's own bundled font tree contains copies installed by the removed Zenos plugin, and that tree is app-private on a non-debuggable install. All copies under `/sdcard/koreader/fonts` are gone.
 
