@@ -66,7 +66,7 @@ Capture writes a binary-safe PNG under `local/captures/` and removes its device-
 
 ## Device safety
 
-FreeKiosk is owner-managed outside this project. Do not re-enable it, change Device Owner, uninstall it, change the default launcher, or reconfigure kiosk settings. `Status` reports `lockTask` read-only.
+FreeKiosk and Andoff are owner-managed outside this project. Do not re-enable FreeKiosk, change Device Owner, uninstall it, change the default launcher, or reconfigure kiosk settings. Andoff (`app.plucky.dpc`) is Device Owner, FreeKiosk is the home/kiosk UI, and Curbox owns the blackout windows. Locked/unlocked runbooks: [boox-locking-docs](../../boox-locking-docs/docs/lock-and-unlock.md). `Status` reports `lockTask` read-only.
 
 Do not run raw `uiautomator dump` or `screencap` into `/sdcard`; use `Device.ps1 Capture`.
 

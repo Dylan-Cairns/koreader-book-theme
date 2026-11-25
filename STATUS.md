@@ -70,6 +70,7 @@ Run on 2026-11-20/21 in this repository:
 - Heading scale research (2026-11-23): documentation only; no plugin change. `.\tools\Test.ps1` - Luacheck 29 files, 0 warnings; LuaUnit 134/134; handoff checks 55 files; mock device checks passing.
 - Seventh round (2026-11-23, working tree; owner decision: EB Garamond body, Ysabeau heading, and adopt the researched in-text scale): section 1.15 rem, minor 1.00 rem sentence case with no tracking, and chapter-number rules in regular weight; cache `VERSION` bumped to 12. `.\tools\Test.ps1` - Luacheck 29 files, 0 warnings; LuaUnit 134/134 (default sizes/case, the `h3`/`h4`-`h6` assertions, the number-weight assertions and the default hash were rewritten; default hash `771e1e6a`, owner theme `4c936bd2`); handoff checks 55 files; mock device checks unchanged and passing. No detection code changed (`hn_classify`, `hn_scan`, `hn_epub` untouched), so the corpus comparison was not re-run. Demo rebuilt (9,840 bytes) and re-checked offline: 13 candidates, 9 pseudo-headings, 1 marker, 1 number pair, 2 followers, 6,937 CSS bytes. Device evidence in the seventh-round section below.
 - Final font set and VOS UI font (2026-11-23, device-only): no plugin code changed. `.\tools\Test.ps1` - Luacheck 29 files, 0 warnings; LuaUnit 134/134; handoff checks 55 files; mock device checks passing. The rebuilt font cache lists exactly EB Garamond, Open Sans and Ysabeau from the user folder; Visual Overhaul Suite `ui_font_name = "Open Sans"` was applied at the next start and the reader menu/file browser render in it.
+- Documentation consolidation (2026-11-25): device locking/unlocking documentation now lives in the sibling `boox-locking-docs` project, and AGENTS, the device runbook, harness and NEXT_AGENT point at it. `.\tools\Test.ps1` - Luacheck 29 files, 0 warnings; LuaUnit 137/137; handoff checks 55 files; mock device checks passing. No plugin, engine or device change.
 
 ## Unit E device acceptance (2026-11-21, observed)
 
@@ -202,6 +203,7 @@ The owner chose **EB Garamond body and Ysabeau headings** and approved the resea
 
 ## Device notes
 
+- Device lockdown (2026-11-25): Andoff (`app.plucky.dpc`) is Device Owner, FreeKiosk is the home/kiosk UI, and Curbox owns the blackout windows; the device was left unlocked for development. Locked/unlocked runbooks are in the sibling `boox-locking-docs` project. Andoff protects KOReader against `am force-stop`, so `Deploy`'s stop step is a no-op; reboot or unprotect the package for a fresh plugin load.
 - On 2026-11-21 the cleaned build (diagnostic markers removed, file-manager guard added) was redeployed to `/sdcard/koreader/plugins/heading-normalizer.koplugin` and the debug file removed. The Tools → Heading normaliser entry still attaches; no debug file was recreated. The plugin setting remained enabled.
 - Settings flush on graceful exit. `am force-stop` after toggling a setting loses it.
 - `sorting_hint = "tools"` works; nesting under `document_settings` did not attach.

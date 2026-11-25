@@ -174,7 +174,7 @@ The parent, not the subagent, commits and decides the next unit.
 
 - Do not modify `koreader-vault-reader` or `meaning-and-meditation`.
 - Do not push.
-- Do not factory-reset, uninstall FreeKiosk, change Device Owner, change the launcher, or reconfigure kiosk settings.
+- Do not factory-reset, uninstall FreeKiosk, change Device Owner, change the launcher, or reconfigure kiosk settings. Device lockdown is owner-managed; the locked/unlocked runbooks are in [boox-locking-docs](../boox-locking-docs/docs/lock-and-unlock.md).
 - No secrets in tracked files or reports; keep local data under ignored `local/`.
 - Use `python -B` and the project's pinned LuaJIT.
 - Distinguish observed results, hypotheses and untested plans. Never claim a device test or deployment that did not happen.

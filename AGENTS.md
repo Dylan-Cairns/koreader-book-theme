@@ -22,7 +22,7 @@ Do not add a cached or destructive EPUB rewriter as the default path. A future o
 - Read `docs/device-runbook.md` and `local/device-access.md` before using ADB.
 - Target the configured serial/model explicitly. Treat recorded device state as historical until checked.
 - Back up affected device files before deployment. `tools/Device.ps1 Deploy` backs up KOReader settings and this plugin, stages the replacement, and attempts rollback on activation failure.
-- Never factory-reset, uninstall FreeKiosk, change Device Owner, change the default launcher, or reconfigure kiosk settings. FreeKiosk is owner-managed outside this project.
+- Never factory-reset, uninstall FreeKiosk, change Device Owner, change the default launcher, or reconfigure kiosk settings. Andoff (`app.plucky.dpc`) is Device Owner, FreeKiosk is the home/kiosk UI, and Curbox owns the blackout windows; all are owner-managed outside this project. Locked/unlocked runbooks: [boox-locking-docs](../boox-locking-docs/docs/lock-and-unlock.md). Andoff protects KOReader against `am force-stop`, so `Deploy`'s stop step silently does nothing; a plugin swap may need a reboot or the owner unprotecting KOReader.
 - Preserve KOReader preferences, fonts, gestures, progress and other plugins. This plugin must not write into book files.
 
 ## Engineering rules

@@ -8,6 +8,18 @@ KOReader root: `/sdcard/koreader`. Plugin directory: `/sdcard/koreader/plugins/b
 
 The pre-rename install lived at `/sdcard/koreader/plugins/heading-normalizer.koplugin`. It must not stay active beside Book Theme — both would append a stylesheet. `Deploy` moves it to `/sdcard/Documents/BooxSetupBackup/heading-normalizer-legacy-<stamp>`; only one such archive is kept.
 
+## Kiosk state
+
+Device lockdown is owner-managed outside this project. As of 2026-11-25 Andoff
+(`app.plucky.dpc`) is Device Owner, FreeKiosk is the home/kiosk UI (not Device Owner),
+and Curbox owns the blackout windows. The device can be locked or unlocked; check
+before deploying, because the two states differ in HOME, auto-relaunch and overlay.
+Authoritative runbooks: [boox-locking-docs](../../boox-locking-docs/docs/lock-and-unlock.md).
+
+Andoff lists KOReader in `mUserControlDisabledPackages`, so `Deploy`'s `am force-stop
+org.koreader.launcher` returns success without stopping it. A plugin swap may not load
+until KOReader restarts (reboot) or the owner unprotects KOReader for the session.
+
 ## Before deploying
 
 1. `.\tools\Device.ps1 Status` — confirm the expected device, KOReader version and foreground app.
