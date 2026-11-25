@@ -175,6 +175,27 @@ function TestScan:testGluedChapterNumberGetsASpace()
     luaunit.assertEquals(result.stats.heading_markers, 1)
 end
 
+function TestScan:testHeadingLinksAreNotUnderlined()
+    local result = Scan.scan(book({
+        ["OEBPS/chapter1.xhtml"] = [[
+            <html><body>
+              <h3 class="sec1"><a href="contents.xhtml#s1">A Section</a></h3>
+              <p class="body">Text with a <a href="notes.xhtml#n1">note</a>.</p>
+            </body></html>]],
+    }), {})
+    luaunit.assertNil(result.error)
+    -- crengine underlines every anchor by default (embedded styles off); the
+    -- heading's link is reset, but the body link keeps its underline.
+    local links = result.css:find("\nh1 a,", 1, true)
+    luaunit.assertNotNil(links)
+    local finish = result.css:find("}", links, true)
+    local reset = result.css:sub(links, finish)
+    luaunit.assertStrContains(reset, "h3 a")
+    luaunit.assertStrContains(reset, "text-decoration: none !important;")
+    luaunit.assertNotStrContains(result.css, "\np.body a")
+    luaunit.assertNotStrContains(result.css, "\na {")
+end
+
 function TestScan:testBlockAfterTheChapterTitleLosesItsPullUp()
     local result = Scan.scan(book({
         ["OEBPS/chapter1.xhtml"] = [[

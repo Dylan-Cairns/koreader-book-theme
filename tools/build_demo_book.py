@@ -148,15 +148,17 @@ all; page to them.</p>
 """
 
 REAL_HEADINGS = """
-<h1>Part Heading (h1)</h1>
+<h1 id="real-headings">Part Heading (h1)</h1>
 <p class="first">A real h1 is always styled as a part title: the largest step
 of the ladder, centred, in the heading face.</p>
 
 <h2>Chapter Heading (h2)</h2>
 <p>The h2 step is one size down and still unmistakably a chapter.</p>
 
-<h3>Section Heading (h3)</h3>
-<p>The h3 step sits inside prose and stays tight to the text below it.</p>
+<h3><a href="#real-headings">Section Heading (h3)</a></h3>
+<p>The h3 step sits inside prose and stays tight to the text below it. This
+heading is a link back to the h1, like a real contents-driven heading, so it
+checks that heading links are never underlined.</p>
 
 <h4>Minor Heading (h4)</h4>
 <p>Minor headings are body size, bold and sentence case, so weight and space

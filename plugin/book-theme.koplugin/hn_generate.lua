@@ -99,6 +99,7 @@ local function heading_declarations(level, role)
         "    text-align: " .. (role.align or "left") .. " !important;",
         "    text-transform: " .. (role.case == "upper" and "uppercase" or "none") .. " !important;",
         "    letter-spacing: " .. (role.spacing or "normal") .. " !important;",
+        "    text-decoration: none !important;",
         "    text-indent: 0 !important;",
         "    hyphens: none !important;",
         "    page-break-after: avoid !important;",
@@ -143,6 +144,7 @@ function Generate.generate(candidates, options)
     local toc_hints = theme.toc_hints ~= false
 
     local heading_selectors = {}
+    local heading_link_selectors = {}
     local quote_selectors = {}
     local page_break_selectors = {}
     local seen_heading, seen_quote = {}, {}
@@ -219,6 +221,7 @@ function Generate.generate(candidates, options)
         local descendants = {}
         for _, selector in ipairs(heading.selectors) do
             descendants[#descendants + 1] = selector .. " *"
+            heading_link_selectors[#heading_link_selectors + 1] = selector .. " a"
         end
         append_rule(lines, descendants, DESCENDANT_RESET)
     end
@@ -237,6 +240,7 @@ function Generate.generate(candidates, options)
             local descendants = {}
             for _, selector in ipairs(selectors) do
                 descendants[#descendants + 1] = selector .. " *"
+                heading_link_selectors[#heading_link_selectors + 1] = selector .. " a"
             end
             append_rule(lines, descendants, DESCENDANT_RESET)
         end
@@ -272,7 +276,11 @@ function Generate.generate(candidates, options)
     for _, role in ipairs(ROLE_ORDER) do
         local metrics = ROLE_METRICS[role]
         if number_groups[role] then
-            append_rule(lines, unique_sorted(number_groups[role]), {
+            local selectors = unique_sorted(number_groups[role])
+            for _, selector in ipairs(selectors) do
+                heading_link_selectors[#heading_link_selectors + 1] = selector .. " a"
+            end
+            append_rule(lines, selectors, {
                 "    font-size: " .. NUMBER_SIZE .. " !important;",
                 "    font-weight: normal !important;",
                 "    line-height: 1.15 !important;",
@@ -281,10 +289,26 @@ function Generate.generate(candidates, options)
             })
         end
         if title_groups[role] then
-            append_rule(lines, unique_sorted(title_groups[role]), {
+            local selectors = unique_sorted(title_groups[role])
+            for _, selector in ipairs(selectors) do
+                heading_link_selectors[#heading_link_selectors + 1] = selector .. " a"
+            end
+            append_rule(lines, selectors, {
                 "    margin: 0 0 " .. metrics.margin_bottom .. " 0 !important;",
             })
         end
+    end
+
+    -- A heading often links back to the contents, and crengine's default
+    -- stylesheet underlines every anchor. With embedded styles off that showed
+    -- up as underlined chapter numbers and section heads (seen on device
+    -- 2026-11-24). Strip the decoration inside headings only, so links in body
+    -- text keep the reader's underline.
+    heading_link_selectors = unique_sorted(heading_link_selectors)
+    if #heading_link_selectors > 0 then
+        append_rule(lines, heading_link_selectors, {
+            "    text-decoration: none !important;",
+        })
     end
 
     -- Some publishers pull the opening paragraph up under the chapter title

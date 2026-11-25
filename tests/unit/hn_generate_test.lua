@@ -52,6 +52,7 @@ function TestGenerate:testRealHeadingsAlwaysThemed()
     luaunit.assertStrContains(h1, "text-indent: 0 !important;")
     luaunit.assertStrContains(h1, "hyphens: none !important;")
     luaunit.assertStrContains(h1, "page-break-after: avoid !important;")
+    luaunit.assertStrContains(h1, "text-decoration: none !important;")
     luaunit.assertStrContains(h1, "text-transform: none !important;")
 
     luaunit.assertStrContains(block(css, "h2"), "font-size: 1.50rem !important;")
@@ -71,6 +72,36 @@ function TestGenerate:testRealHeadingsAlwaysThemed()
     luaunit.assertNotNil(reset)
     luaunit.assertStrContains(reset, "font-size: inherit !important;")
     luaunit.assertStrContains(css, "h4 *,\nh5 *,\nh6 * {")
+end
+
+function TestGenerate:testHeadingLinksAreNotUnderlined()
+    local css = generate({{selector = "p.calibre7", level = 2}})
+    -- crengine's default stylesheet underlines every anchor, which showed up
+    -- on device as underlined chapter numbers and section heads when the
+    -- publisher's stylesheet was off. Only headings and their anchors are reset.
+    local links = block(css, "h1 a")
+    luaunit.assertNotNil(links)
+    luaunit.assertStrContains(links, "h2 a")
+    luaunit.assertStrContains(links, "h6 a")
+    luaunit.assertStrContains(links, "p.calibre7 a")
+    luaunit.assertStrContains(links, "text-decoration: none !important;")
+
+    -- Body links keep the reader's default underline: there is no bare `a`
+    -- rule and no reset for paragraph anchors that are not headings.
+    luaunit.assertNotStrContains(css, "\na {")
+    luaunit.assertNotStrContains(css, "\np a")
+    luaunit.assertNotStrContains(css, "\ndiv a")
+end
+
+function TestGenerate:testNumberHeadingLinksAreNotUnderlined()
+    local css = generate({}, nil, {
+        number_headings = {"h2.ch_num"},
+        number_titles = {"h2.ch_name"},
+    })
+    local links = block(css, "h1 a")
+    luaunit.assertNotNil(links)
+    luaunit.assertStrContains(links, "h2.ch_num a")
+    luaunit.assertStrContains(links, "h2.ch_name a")
 end
 
 function TestGenerate:testBaseBlockquoteUsesQuoteRole()
